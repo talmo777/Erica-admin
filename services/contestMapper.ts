@@ -26,5 +26,6 @@ export function mapApiContestToContest(c: ApiContest): Contest {
     endDate: c.end_date ?? '',
     createdAt: c.created_at,
     updatedAt: c.updated_at
+    viewCount: 0
   };
 }

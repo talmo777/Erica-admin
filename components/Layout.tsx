@@ -1,21 +1,20 @@
 import React from 'react';
-import { NavLink, Outlet, useLocation } from 'react-router-dom';
+import { NavLink, Outlet } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { 
-  LayoutDashboard, 
-  Calendar, 
-  MessageSquare, 
-  AlertTriangle, 
-  Send, 
-  LogOut, 
-  User,
-  Menu
+import {
+  LayoutDashboard,
+  Calendar,
+  MessageSquare,
+  AlertTriangle,
+  Send,
+  LogOut,
+  Menu,
+  User
 } from 'lucide-react';
 import { HYU_LOGO_URL, MOYEON_LOGO_URL, MOYEON_LINK_URL, USER_WEB_URL } from '../constants';
 
 export const AdminLayout: React.FC = () => {
   const { logout, user } = useAuth();
-  const location = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
 
   const navItems = [
@@ -34,25 +33,37 @@ export const AdminLayout: React.FC = () => {
           <img src={HYU_LOGO_URL} alt="Hanyang Logo" className="w-8 h-8 rounded" />
           <span className="font-bold text-gray-800">ERICA Admin</span>
         </div>
-        <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}>
+        <button
+          onClick={() => setIsMobileMenuOpen((v) => !v)}
+          aria-label="toggle mobile menu"
+        >
           <Menu className="w-6 h-6 text-gray-600" />
         </button>
       </div>
 
       {/* Sidebar */}
-      <aside className={`
-        fixed md:sticky top-0 left-0 z-40 w-64 h-screen bg-white border-r border-gray-200 flex flex-col transition-transform duration-300
-        ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
-      `}>
+      <aside
+        className={[
+          'fixed md:sticky top-0 left-0 z-40 w-64 h-screen bg-white border-r border-gray-200',
+          'flex flex-col transition-transform duration-300',
+          isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0',
+        ].join(' ')}
+      >
         {/* Brand */}
-        <a href={USER_WEB_URL} target="_blank" rel="noreferrer" className="flex items-center gap-3">
-         <img src={HYU_LOGO_URL} alt="Hanyang Logo" className="w-8 h-8 rounded" />
-         <div>
-          <h1 className="font-bold text-lg text-gray-900 leading-tight">ERICA Board</h1>
-          <p className="text-xs text-gray-500">관리자 시스템</p>
-         </div>
-        </a>
-
+        <div className="p-4 border-b border-gray-200">
+          <a
+            href={USER_WEB_URL}
+            target="_blank"
+            rel="noreferrer"
+            className="flex items-center gap-3"
+          >
+            <img src={HYU_LOGO_URL} alt="Hanyang Logo" className="w-8 h-8 rounded" />
+            <div>
+              <h1 className="font-bold text-lg text-gray-900 leading-tight">ERICA Board</h1>
+              <p className="text-xs text-gray-500">관리자 시스템</p>
+            </div>
+          </a>
+        </div>
 
         {/* Navigation */}
         <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
@@ -62,12 +73,12 @@ export const AdminLayout: React.FC = () => {
               to={item.path}
               end={item.end}
               onClick={() => setIsMobileMenuOpen(false)}
-              className={({ isActive }) => `
-                flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors
-                ${isActive 
-                  ? 'bg-blue-50 text-blue-700' 
-                  : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'}
-              `}
+              className={({ isActive }) =>
+                [
+                  'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
+                  isActive ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900',
+                ].join(' ')
+              }
             >
               <item.icon className="w-5 h-5" />
               {item.label}
@@ -75,34 +86,41 @@ export const AdminLayout: React.FC = () => {
           ))}
         </nav>
 
-        {/* User Profile & Footer */}
-        <div className="mt-4 pt-4 border-t border-gray-200 text-xs text-center text-gray-400">
-         <a
-           href={MOYEON_LINK_URL}
-           target="_blank"
-           rel="noreferrer"
-           className="inline-flex items-center gap-2 hover:text-gray-600"
-         >
-           <img src={MOYEON_LOGO_URL} alt="모두의연구소" className="w-4 h-4" />
-           <span>Powered by 모두의연구소</span>
-         </a>
-        </div>
+        {/* Bottom */}
+        <div className="p-4 border-t border-gray-200 space-y-3">
+          {/* User */}
+          <div className="flex items-center gap-2 text-sm text-gray-700">
+            <User className="w-4 h-4 text-gray-500" />
+            <div className="leading-tight">
+              <div className="font-medium">{user?.name ?? '관리자'}</div>
+              <div className="text-xs text-gray-500">{user?.role ?? ''}</div>
+            </div>
+          </div>
 
-          <button 
+          {/* Logout */}
+          <button
             onClick={logout}
-            className="flex items-center gap-2 text-sm text-gray-500 hover:text-red-600 w-full px-2 py-1 transition-colors"
+            className="flex items-center gap-2 text-sm text-gray-500 hover:text-red-600 w-full px-2 py-2 rounded hover:bg-gray-50 transition-colors"
           >
             <LogOut size={16} />
             로그아웃
           </button>
-          <div className="mt-4 pt-4 border-t border-gray-200 text-xs text-center text-gray-400">
-            <p>Powered by 모두의연구소</p>
-          </div>
+
+          {/* Powered by */}
+          <a
+            href={MOYEON_LINK_URL}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-2 text-xs text-gray-400 hover:text-gray-600"
+          >
+            <img src={MOYEON_LOGO_URL} alt="모두의연구소" className="w-4 h-4" />
+            <span>Powered by 모두의연구소</span>
+          </a>
         </div>
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 p-4 md:p-8 overflow-y-auto h-screen">
+      <main className="flex-1 p-4 md:p-8 overflow-y-auto min-h-screen">
         <div className="max-w-7xl mx-auto">
           <Outlet />
         </div>
@@ -110,7 +128,7 @@ export const AdminLayout: React.FC = () => {
 
       {/* Mobile Overlay */}
       {isMobileMenuOpen && (
-        <div 
+        <div
           className="fixed inset-0 bg-black/50 z-30 md:hidden"
           onClick={() => setIsMobileMenuOpen(false)}
         />

@@ -115,7 +115,7 @@ const EmergencySection = () => {
 
 // --- Feedback Section ---
 // pages/Support.tsx 내부
-import { AIRTABLE_FEEDBACK_EMBED_URL, AIRTABLE_FEEDBACK_FORM_URL } from '../constants';
+
 
 const FeedbackSection = () => {
   return (

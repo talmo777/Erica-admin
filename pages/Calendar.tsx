@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Contest } from '../types';
-import ContestModal from '../components/ContestModal';
+import ContestModal from '../components/ContestModal.tsx';
 import { getContests } from '../services/api';
 import { mapApiContestToContest } from '../services/contestMapper';
 

@@ -1,7 +1,7 @@
 // src/services/contestMapper.ts
 import { ApiContest } from './api';
 import { Contest, ContestCategory, ContestStatus, TargetCollege } from '../types';
-import { DEFAULT_IMAGE_PLACEHOLDER } from '../constants';
+import { DEFAULT_IMAGE_PLACEHOLDER } from '../constants.ts';
 
 export function mapApiContestToContest(c: ApiContest): Contest {
   const status =

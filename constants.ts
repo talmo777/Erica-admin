@@ -39,3 +39,7 @@ export const USER_WEB_URL = "https://hyu-erica-board.vercel.app/";
 // 보통 /form -> /embed 로 바꾸면 iframe에서 동작
 export const AIRTABLE_FEEDBACK_EMBED_URL =
   "https://airtable.com/embed/appNU81TMufdHbQiE/pagmS8nM7XdHTdTzW/form";
+export const DEFAULT_IMAGE_PLACEHOLDER = ""; // 이미지 없을 때 fallback (원하면 placeholder 이미지 URL로 교체)
+
+export const AIRTABLE_FEEDBACK_FORM_URL =
+  "https://airtable.com/appNU81TMufdHbQiE/pagmS8nM7XdHTdTzW/form";

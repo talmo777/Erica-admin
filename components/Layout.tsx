@@ -11,7 +11,7 @@ import {
   User,
   Menu
 } from 'lucide-react';
-import { LOGO_PLACEHOLDER } from '../constants';
+import { HYU_LOGO_URL, MOYEON_LOGO_URL, MOYEON_LINK_URL, USER_WEB_URL } from '../constants';
 
 export const AdminLayout: React.FC = () => {
   const { logout, user } = useAuth();
@@ -31,7 +31,7 @@ export const AdminLayout: React.FC = () => {
       {/* Mobile Header */}
       <div className="md:hidden bg-white border-b p-4 flex justify-between items-center">
         <div className="flex items-center gap-2">
-          <img src={LOGO_PLACEHOLDER} alt="Logo" className="w-8 h-8 rounded" />
+          <img src={HYU_LOGO_URL} alt="Hanyang Logo" className="w-8 h-8 rounded" />
           <span className="font-bold text-gray-800">ERICA Admin</span>
         </div>
         <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}>
@@ -45,13 +45,14 @@ export const AdminLayout: React.FC = () => {
         ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
       `}>
         {/* Brand */}
-        <div className="p-6 flex items-center gap-3 border-b border-gray-100">
-          <img src={LOGO_PLACEHOLDER} alt="Hanyang Logo" className="w-8 h-8 rounded bg-blue-900" />
-          <div>
-            <h1 className="font-bold text-lg text-gray-900 leading-tight">ERICA Board</h1>
-            <p className="text-xs text-gray-500">관리자 시스템</p>
-          </div>
-        </div>
+        <a href={USER_WEB_URL} target="_blank" rel="noreferrer" className="flex items-center gap-3">
+         <img src={HYU_LOGO_URL} alt="Hanyang Logo" className="w-8 h-8 rounded" />
+         <div>
+          <h1 className="font-bold text-lg text-gray-900 leading-tight">ERICA Board</h1>
+          <p className="text-xs text-gray-500">관리자 시스템</p>
+         </div>
+        </a>
+
 
         {/* Navigation */}
         <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
@@ -75,16 +76,18 @@ export const AdminLayout: React.FC = () => {
         </nav>
 
         {/* User Profile & Footer */}
-        <div className="p-4 border-t border-gray-100 bg-gray-50">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-700">
-              <User size={16} />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-gray-900 truncate">{user?.name}</p>
-              <p className="text-xs text-gray-500 truncate">{user?.role}</p>
-            </div>
-          </div>
+        <div className="mt-4 pt-4 border-t border-gray-200 text-xs text-center text-gray-400">
+         <a
+           href={MOYEON_LINK_URL}
+           target="_blank"
+           rel="noreferrer"
+           className="inline-flex items-center gap-2 hover:text-gray-600"
+         >
+           <img src={MOYEON_LOGO_URL} alt="모두의연구소" className="w-4 h-4" />
+           <span>Powered by 모두의연구소</span>
+         </a>
+        </div>
+
           <button 
             onClick={logout}
             className="flex items-center gap-2 text-sm text-gray-500 hover:text-red-600 w-full px-2 py-1 transition-colors"

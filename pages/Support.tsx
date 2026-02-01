@@ -1,9 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { SupportRepository } from '../services/repository';
 import { EmergencyTicket, InternalFeedback, TicketSeverity, TicketStatus } from '../types';
+import { useLocation } from 'react-router-dom';
+import { AIRTABLE_FEEDBACK_EMBED_URL, AIRTABLE_FEEDBACK_FORM_URL } from "../constants";
+
 
 export const SupportPage: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'emergency' | 'feedback'>('emergency');
+  const location = useLocation();
+  const initialTab = location.pathname.includes('feedback') ? 'feedback' : 'emergency';
+  const [activeTab, setActiveTab] = useState<'emergency' | 'feedback'>(initialTab);
 
   return (
     <div className="space-y-6">
@@ -109,50 +114,37 @@ const EmergencySection = () => {
 };
 
 // --- Feedback Section ---
+// pages/Support.tsx 내부
+import { AIRTABLE_FEEDBACK_EMBED_URL, AIRTABLE_FEEDBACK_FORM_URL } from '../constants';
+
 const FeedbackSection = () => {
-  const [feedbacks, setFeedbacks] = useState<InternalFeedback[]>([]);
-  const [description, setDescription] = useState('');
-
-  useEffect(() => {
-    SupportRepository.getFeedback().then(setFeedbacks);
-  }, [description]);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    await SupportRepository.saveFeedback({
-      title: '새 피드백',
-      content: description,
-      type: '개선',
-      importance: '중'
-    });
-    setDescription('');
-  };
-
   return (
     <div className="space-y-4">
-      <form onSubmit={handleSubmit} className="flex gap-2">
-        <input 
-          type="text" 
-          value={description}
-          onChange={e => setDescription(e.target.value)}
-          placeholder="관리자 페이지에 대한 건의사항을 남겨주세요." 
-          className="flex-1 border p-3 rounded-lg"
-          required
-        />
-        <button type="submit" className="bg-blue-600 text-white px-6 rounded-lg font-medium">등록</button>
-      </form>
+      <div className="bg-white p-4 rounded-lg border flex items-center justify-between">
+        <div>
+          <p className="font-semibold text-gray-800">실무자 피드백 접수</p>
+          <p className="text-sm text-gray-500">
+            아래 폼에 제목/내용/접수일시/작성자를 남겨주세요.
+          </p>
+        </div>
+        <a
+          href={AIRTABLE_FEEDBACK_FORM_URL}
+          target="_blank"
+          rel="noreferrer"
+          className="text-sm font-medium text-blue-700 hover:text-blue-800"
+        >
+          새 창으로 열기
+        </a>
+      </div>
 
-      <div className="bg-white rounded-lg shadow-sm border p-4 space-y-3">
-        {feedbacks.map(f => (
-          <div key={f.id} className="p-3 bg-gray-50 rounded border border-gray-100">
-             <p className="text-gray-800">{f.content}</p>
-             <div className="mt-2 flex gap-2 text-xs text-gray-500">
-               <span>{f.type}</span>
-               <span>•</span>
-               <span>{new Date(f.createdAt).toLocaleDateString()}</span>
-             </div>
-          </div>
-        ))}
+      <div className="bg-white rounded-lg border overflow-hidden">
+        <iframe
+          title="관리자 피드백 폼"
+          src={AIRTABLE_FEEDBACK_EMBED_URL}
+          className="w-full"
+          style={{ height: "calc(100vh - 260px)" }}
+          frameBorder={0}
+        />
       </div>
     </div>
   );

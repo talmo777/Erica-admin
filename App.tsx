@@ -5,7 +5,7 @@ import { Landing } from './pages/Landing';
 import { AdminLayout } from './components/Layout';
 import { Dashboard } from './pages/Dashboard';
 import { ContestManager } from './pages/ContestManager';
-import { CalendarView } from './pages/Calendar';
+import CalendarView from './pages/Calendar';
 import { SupportPage } from './pages/Support';
 
 // Mock Login Page Component

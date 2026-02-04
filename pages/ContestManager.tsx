@@ -11,16 +11,18 @@ const emptyContest: Contest = {
   id: '',
   title: '',
   description: '',
-  category: '교내 공모전',
-  targets: [],
+  imageUrl: '',
   applyUrl: '',
-  posterUrl: '',
+  category: ContestCategory.CAMPUS,
+  status: ContestStatus.DRAFT,
+  targets: [],
   startDate: '',
   endDate: '',
-  status: 'draft',
   createdAt: '',
   updatedAt: '',
+  viewCount: 0,
 };
+
 
 export const ContestManager: React.FC = () => {
   const [contests, setContests] = useState<Contest[]>(() => contestRepository.getAll());

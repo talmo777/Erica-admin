@@ -49,14 +49,11 @@ export async function extractContestInfo(file: File): Promise<AiExtractResult> {
 
   const url = `${API_BASE}/api/v1/ai/extract`;
 
-  const res = await fetch(url, {
-    method: "POST",
-    // ⚠️ multipart/form-data일 때 Content-Type을 직접 지정하면 boundary 깨짐 -> 지정하지 말 것
-    headers: {
-      ...(ADMIN_TOKEN ? { "X-Admin-Token": ADMIN_TOKEN } : {}),
-    },
-    body: form,
+  const res = await fetch("/api/ai/extract", {
+   method: "POST",
+   body: form,
   });
+
 
   if (!res.ok) {
     // 에러 응답이 json일 수도 있고 text일 수도 있음 → 둘 다 방어

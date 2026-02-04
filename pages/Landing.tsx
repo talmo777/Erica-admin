@@ -188,7 +188,7 @@ export const Landing: React.FC = () => {
       </main>
 
       <footer className="p-8 text-center text-gray-400 text-sm border-t">
-        <p>&copy; 2024 Hanyang University ERICA. All rights reserved.</p>
+        <p>&copy; 2026 Hanyang University ERICA. All rights reserved.</p>
         <p className="mt-2">Created with 모두의연구소</p>
       </footer>
     </div>

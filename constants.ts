@@ -43,3 +43,4 @@ export const DEFAULT_IMAGE_PLACEHOLDER = ""; // 이미지 없을 때 fallback (�
 
 export const AIRTABLE_FEEDBACK_FORM_URL =
   "https://airtable.com/appNU81TMufdHbQiE/pagmS8nM7XdHTdTzW/form";
+export const LOGO_PLACEHOLDER = HYU_LOGO_URL;

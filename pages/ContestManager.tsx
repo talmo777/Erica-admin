@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { Contest, ContestCategory, ContestStatus, TARGET_OPTIONS } from '../types';
-import { ContestRepository } from '../services/repository';
+import ContestRepository from '../services/repository';
 import { extractContestInfo } from '../services/aiExtract';
 
 const contestRepository = new ContestRepository();

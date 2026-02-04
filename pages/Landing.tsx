@@ -132,8 +132,8 @@ export const Landing: React.FC = () => {
           .blob {
             position: absolute;
             border-radius: 9999px;
-            filter: blur(48px);
-            opacity: 0.22;
+            filter: blur(40px);
+            opacity: 0.34;
             transform: translate3d(0,0,0);
             will-change: transform;
           }
@@ -144,7 +144,7 @@ export const Landing: React.FC = () => {
             height: 520px;
             left: -180px;
             top: 60px;
-            background: radial-gradient(circle at 30% 30%, rgba(37,99,235,0.85), rgba(37,99,235,0) 60%);
+            background: radial-gradient(circle at 30% 30%, rgba(37,99,235,0.95), rgba(37,99,235,0) 60%);
             transform: translate3d(calc((var(--mx) - 0.5) * 70px), calc((var(--my) - 0.5) * 45px), 0);
           }
 
@@ -153,7 +153,7 @@ export const Landing: React.FC = () => {
             height: 560px;
             right: -220px;
             top: 110px;
-            background: radial-gradient(circle at 40% 40%, rgba(30,64,175,0.75), rgba(30,64,175,0) 62%);
+            background: radial-gradient(circle at 40% 40%, rgba(30,64,175,0.88), rgba(30,64,175,0) 62%);
             transform: translate3d(calc((var(--mx) - 0.5) * -80px), calc((var(--my) - 0.5) * 55px), 0);
           }
 
@@ -163,7 +163,7 @@ export const Landing: React.FC = () => {
             left: 50%;
             bottom: -260px;
             margin-left: -260px;
-            background: radial-gradient(circle at 50% 50%, rgba(148,163,184,0.65), rgba(148,163,184,0) 65%);
+            background: radial-gradient(circle at 50% 50%, rgba(148,163,184,0.78), rgba(148,163,184,0) 65%);
             transform: translate3d(calc((var(--mx) - 0.5) * 40px), calc((var(--my) - 0.5) * -40px), 0);
           }
 
@@ -173,9 +173,9 @@ export const Landing: React.FC = () => {
             inset: 0;
             pointer-events: none;
             background: radial-gradient(
-              460px circle at calc(var(--mx) * 100%) calc(var(--my) * 100%),
-              rgba(37,99,235,0.10),
-              rgba(255,255,255,0) 62%
+              720px circle at calc(var(--mx) * 100%) calc(var(--my) * 100%),
+              rgba(37,99,235,0.22),
+              rgba(255,255,255,0) 60%
             );
           }
 

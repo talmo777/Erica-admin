@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Contest, ContestCategory, ContestStatus, TARGET_OPTIONS } from '../types';
 import { ContestRepository } from '../services/repository';
-import { extractContestInfo } from '../services/aiExtract';
+import { extractContestInfo, AiExtractResult } from '../services/aiExtract';
 
 type Mode = 'create' | 'edit';
 
@@ -21,31 +21,49 @@ const emptyContest: Contest = {
   viewCount: 0,
 };
 
+type AiDraft = {
+  titleSummary: string;
+  organizer: string;
+  target: string;
+  scheduleStart: string; // '' allowed
+  scheduleEnd: string;   // '' allowed
+  body: string;          // description 본문
+};
+
+function buildDescriptionOptionA(d: AiDraft): string {
+  const lines: string[] = [];
+  lines.push('[AI 요약]');
+  lines.push(`- 제목요약: ${d.titleSummary || '-'}`);
+  lines.push(`- 주최/주관: ${d.organizer || '-'}`);
+  lines.push(`- 대상: ${d.target || '-'}`);
+
+  const sched = `${d.scheduleStart || ''} ~ ${d.scheduleEnd || ''}`.trim();
+  lines.push(`- 일정: ${sched || '-'}`);
+  lines.push('');
+  lines.push('[본문]');
+  lines.push(d.body || '');
+  return lines.join('\n').trim();
+}
+
 export const ContestManager: React.FC = () => {
-  // list
   const [contests, setContests] = useState<Contest[]>([]);
 
-  // form mode
   const [mode, setMode] = useState<Mode>('create');
   const [editingId, setEditingId] = useState<string | null>(null);
+  const isEditing = mode === 'edit' && Boolean(editingId);
 
-  // step
   const [step, setStep] = useState<1 | 2>(1);
-
-  // form
   const [form, setForm] = useState<Contest>({ ...emptyContest });
 
-  // upload
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [uploadPreviewUrl, setUploadPreviewUrl] = useState<string | null>(null);
 
-  // ai
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
 
-  const isEditing = mode === 'edit' && Boolean(editingId);
+  // ✅ Step2에서 편집할 AI draft (옵션 A용)
+  const [aiDraft, setAiDraft] = useState<AiDraft | null>(null);
 
-  // initial fetch
   useEffect(() => {
     (async () => {
       try {
@@ -70,29 +88,40 @@ export const ContestManager: React.FC = () => {
   const resetForm = () => {
     setMode('create');
     setEditingId(null);
-    setForm({ ...emptyContest });
     setStep(1);
+    setForm({ ...emptyContest });
+
+    setAiDraft(null);
+    setAiError(null);
+    setAiLoading(false);
 
     setUploadFile(null);
     if (uploadPreviewUrl) URL.revokeObjectURL(uploadPreviewUrl);
     setUploadPreviewUrl(null);
-
-    setAiLoading(false);
-    setAiError(null);
   };
 
   const startEdit = (c: Contest) => {
+    // 편집 모드에서는 기존 description 전체를 그대로 편집(옵션 A 파싱은 MVP 범위 밖)
     setMode('edit');
     setEditingId(c.id);
+    setStep(2);
+
     setForm({ ...c });
-    setStep(1);
+    setAiDraft({
+      titleSummary: '',
+      organizer: '',
+      target: '',
+      scheduleStart: c.startDate || '',
+      scheduleEnd: c.endDate || '',
+      body: c.description || '',
+    });
 
     setUploadFile(null);
     if (uploadPreviewUrl) URL.revokeObjectURL(uploadPreviewUrl);
     setUploadPreviewUrl(null);
 
-    setAiLoading(false);
     setAiError(null);
+    setAiLoading(false);
   };
 
   const onPickFile = (file: File | null) => {
@@ -126,31 +155,25 @@ export const ContestManager: React.FC = () => {
     setAiError(null);
 
     try {
-      const r: any = await extractContestInfo(uploadFile);
+      const r: AiExtractResult = await extractContestInfo(uploadFile);
 
-      // aiExtract 결과 필드가 프로젝트마다 다를 수 있어 방어적으로 처리
-      const titleCandidate = r.titleSummary || r.summaryTitle || r.title || '';
-      const descCandidate = r.description || '';
-      const organizer = r.organizer || r.host || null;
-      const targetSummary = r.target || r.targetSummary || null;
-      const scheduleStart = r.scheduleStart || r.applyStartDate || null;
-      const scheduleEnd = r.scheduleEnd || r.applyEndDate || null;
-
-      const blocks: string[] = [];
-      if (organizer) blocks.push(`**주최/주관**: ${organizer}`);
-      if (targetSummary) blocks.push(`**대상**: ${targetSummary}`);
-      if (scheduleStart || scheduleEnd) blocks.push(`**일정**: ${scheduleStart ?? ''} ~ ${scheduleEnd ?? ''}`.trim());
-      if (blocks.length) blocks.push('');
-
-      const mergedDescription = (blocks.join('\n') + descCandidate).trim();
-
+      // ✅ 제목은 실무자 입력 우선: 비어있을 때만 AI 제목요약으로 자동 채움
       setForm((prev) => ({
         ...prev,
-        title: prev.title?.trim() ? prev.title : (titleCandidate || prev.title),
-        description: mergedDescription || prev.description,
-        startDate: (scheduleStart ?? prev.startDate) || '',
-        endDate: (scheduleEnd ?? prev.endDate) || '',
+        title: prev.title.trim() ? prev.title : (r.titleSummary || prev.title),
+        // dates는 form에도 채워두면 Step1/리스트에 일관성 생김
+        startDate: r.scheduleStart ?? prev.startDate,
+        endDate: r.scheduleEnd ?? prev.endDate,
       }));
+
+      setAiDraft({
+        titleSummary: r.titleSummary || '',
+        organizer: r.organizer ?? '',
+        target: r.target ?? '',
+        scheduleStart: r.scheduleStart ?? '',
+        scheduleEnd: r.scheduleEnd ?? '',
+        body: r.description || '',
+      });
 
       setStep(2);
     } catch (e: any) {
@@ -162,9 +185,15 @@ export const ContestManager: React.FC = () => {
   };
 
   const save = async () => {
+    // 실무자 필수 입력
     if (!form.title.trim()) return alert('공모전 제목은 필수입니다.');
     if (!form.applyUrl.trim()) return alert('신청 URL(Deep Link)은 필수입니다.');
     if (!form.targets.length) return alert('게시 대상을 최소 1개 선택하세요.');
+
+    if (!aiDraft) {
+      // AI draft가 없으면(예: 편집 진입/AI 미사용) form.description 그대로 저장
+      // 그래도 Step2에서 저장 가능하게 허용
+    }
 
     try {
       const now = new Date().toISOString();
@@ -175,6 +204,13 @@ export const ContestManager: React.FC = () => {
         createdAt: isEditing ? form.createdAt : now,
         updatedAt: now,
         viewCount: form.viewCount ?? 0,
+
+        // ✅ 옵션 A: description에 AI 요약 블록 + 본문을 합쳐 저장
+        description: aiDraft ? buildDescriptionOptionA(aiDraft) : form.description,
+
+        // ✅ 일정은 Contest 필드(startDate/endDate)에 반영
+        startDate: aiDraft?.scheduleStart ?? form.startDate,
+        endDate: aiDraft?.scheduleEnd ?? form.endDate,
       };
 
       await ContestRepository.save(payload);
@@ -374,22 +410,46 @@ export const ContestManager: React.FC = () => {
 
             {/* Editable right */}
             <div className="space-y-4">
-              <div className="rounded-2xl border bg-white p-4">
-                <div className="text-sm font-semibold text-slate-900">AI가 정리한 본문(수정 가능)</div>
+              {/* AI 구조화 필드 */}
+              <div className="rounded-2xl border bg-white p-4 space-y-3">
+                <div className="text-sm font-semibold text-slate-900">AI 추출 요약(수정 가능)</div>
 
-                <textarea
-                  value={form.description}
-                  onChange={(e) => setForm({ ...form, description: e.target.value })}
-                  className="mt-3 w-full min-h-[360px] px-4 py-3 rounded-xl border focus:outline-none focus:ring-2 focus:ring-sky-200 text-sm"
-                  placeholder="AI 내용이 여기에 채워집니다."
-                />
+                <div className="space-y-1">
+                  <div className="text-xs text-slate-500">제목요약</div>
+                  <input
+                    value={aiDraft?.titleSummary ?? ''}
+                    onChange={(e) => setAiDraft((p) => (p ? { ...p, titleSummary: e.target.value } : p))}
+                    className="w-full px-3 py-2 rounded-xl border text-sm"
+                    placeholder="AI 제목요약"
+                  />
+                </div>
 
-                <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <div className="text-xs text-slate-500">주최/주관</div>
+                  <input
+                    value={aiDraft?.organizer ?? ''}
+                    onChange={(e) => setAiDraft((p) => (p ? { ...p, organizer: e.target.value } : p))}
+                    className="w-full px-3 py-2 rounded-xl border text-sm"
+                    placeholder="가능하면 채워짐"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <div className="text-xs text-slate-500">대상(학과/학년/전공 등)</div>
+                  <input
+                    value={aiDraft?.target ?? ''}
+                    onChange={(e) => setAiDraft((p) => (p ? { ...p, target: e.target.value } : p))}
+                    className="w-full px-3 py-2 rounded-xl border text-sm"
+                    placeholder="가능하면 채워짐"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   <div className="space-y-1">
                     <div className="text-xs text-slate-500">신청 시작(선택)</div>
                     <input
-                      value={form.startDate || ''}
-                      onChange={(e) => setForm({ ...form, startDate: e.target.value })}
+                      value={aiDraft?.scheduleStart ?? ''}
+                      onChange={(e) => setAiDraft((p) => (p ? { ...p, scheduleStart: e.target.value } : p))}
                       className="w-full px-3 py-2 rounded-xl border text-sm"
                       placeholder="YYYY-MM-DD"
                     />
@@ -397,13 +457,27 @@ export const ContestManager: React.FC = () => {
                   <div className="space-y-1">
                     <div className="text-xs text-slate-500">신청 마감(선택)</div>
                     <input
-                      value={form.endDate || ''}
-                      onChange={(e) => setForm({ ...form, endDate: e.target.value })}
+                      value={aiDraft?.scheduleEnd ?? ''}
+                      onChange={(e) => setAiDraft((p) => (p ? { ...p, scheduleEnd: e.target.value } : p))}
                       className="w-full px-3 py-2 rounded-xl border text-sm"
                       placeholder="YYYY-MM-DD"
                     />
                   </div>
                 </div>
+              </div>
+
+              {/* 본문 */}
+              <div className="rounded-2xl border bg-white p-4">
+                <div className="text-sm font-semibold text-slate-900">본문(수정 가능)</div>
+                <textarea
+                  value={aiDraft?.body ?? form.description}
+                  onChange={(e) => {
+                    if (aiDraft) setAiDraft({ ...aiDraft, body: e.target.value });
+                    else setForm({ ...form, description: e.target.value });
+                  }}
+                  className="mt-3 w-full min-h-[360px] px-4 py-3 rounded-xl border focus:outline-none focus:ring-2 focus:ring-sky-200 text-sm"
+                  placeholder="AI 본문이 여기에 채워집니다."
+                />
               </div>
 
               <div className="flex items-center justify-end gap-3">

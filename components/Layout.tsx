@@ -78,7 +78,7 @@ export const AdminLayout: React.FC = () => {
               className={({ isActive }) =>
                 [
                   'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
-                  isActive ? 'bg-sky-100 text-sky-800' shadow-sm : 'text-slate-700 hover:bg-gray-50 hover:text-slate-900',
+                  isActive ? 'bg-sky-100 text-sky-800 shadow-sm' : 'text-slate-700 hover:bg-gray-50 hover:text-slate-900',
                 ].join(' ')
               }
             >

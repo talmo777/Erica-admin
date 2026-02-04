@@ -43,14 +43,7 @@ export const Landing: React.FC = () => {
           <div className="blob blob-b" />
           <div className="blob blob-c" />
 
-          {/* soft vignette */}
-          <div
-            className="absolute inset-0"
-            style={{
-              background:
-                'radial-gradient(circle at 50% 45%, rgba(255,255,255,0) 0%, rgba(255,255,255,0.55) 58%, rgba(255,255,255,0.85) 80%, rgba(255,255,255,1) 100%)',
-            }}
-          />
+
         </div>
 
         {/* ---- content layer ---- */}
@@ -84,7 +77,7 @@ export const Landing: React.FC = () => {
             height: 520px;
             border-radius: 9999px;
             filter: blur(60px);
-            opacity: 0.16;
+            opacity: 0.28;
             transform: translate3d(0,0,0);
             will-change: transform;
           }
@@ -92,21 +85,21 @@ export const Landing: React.FC = () => {
           .blob-a {
             left: -180px;
             top: 60px;
-            background: radial-gradient(circle at 30% 30%, rgba(37,99,235,0.65), rgba(37,99,235,0.0) 60%);
+            background: radial-gradient(circle at 30% 30%, rgba(37,99,235,0.85), rgba(37,99,235,0.0) 60%);
             animation: driftA 12s ease-in-out infinite;
           }
 
           .blob-b {
             right: -200px;
             top: 120px;
-            background: radial-gradient(circle at 40% 40%, rgba(30,64,175,0.55), rgba(30,64,175,0.0) 62%);
+            background: radial-gradient(circle at 40% 40%, rgba(30,64,175,0.75), rgba(30,64,175,0.0) 62%);
             animation: driftB 14s ease-in-out infinite;
           }
 
           .blob-c {
             left: 20%;
             bottom: -220px;
-            background: radial-gradient(circle at 50% 50%, rgba(148,163,184,0.55), rgba(148,163,184,0.0) 65%);
+            background: radial-gradient(circle at 50% 50%, rgba(148,163,184,0.75), rgba(148,163,184,0.0) 65%);
             animation: driftC 16s ease-in-out infinite;
           }
 

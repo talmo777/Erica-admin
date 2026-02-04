@@ -10,7 +10,7 @@ export const Landing: React.FC = () => {
       <header className="flex justify-between items-center p-6 border-b">
         <div className="flex items-center gap-2">
            <img src={HYU_LOGO_URL} alt="Logo" className="w-8 h-8" />
-           <span className="font-bold text-xl tracking-tight text-blue-900">HYU ERICA Board</span>
+           <span className="font-bold text-xl tracking-tight text-blue-900">HY-LINK</span>
         </div>
         <button 
           onClick={() => navigate('/login')}

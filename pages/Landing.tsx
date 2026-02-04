@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { LOGO_PLACEHOLDER } from '../constants';
+import { HYU_LOGO_URL } from '../constants';
 
 export const Landing: React.FC = () => {
   const navigate = useNavigate();

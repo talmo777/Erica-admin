@@ -3,40 +3,64 @@ import type { VercelRequest, VercelResponse } from "@vercel/node";
 const BOARD_API_BASE_URL = (process.env.BOARD_API_BASE_URL ?? "").replace(/\/+$/, "");
 const ADMIN_TOKEN_AI = (process.env.ADMIN_TOKEN_AI ?? "").trim();
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
-  // 간단 preflight (같은 origin이라도 브라우저가 OPTIONS 날릴 수 있음)
-  if (req.method === "OPTIONS") return res.status(204).end();
+async function readBody(req: VercelRequest): Promise<Buffer> {
+  const chunks: Buffer[] = [];
+  for await (const chunk of req as any) {
+    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+  }
+  return Buffer.concat(chunks);
+}
 
+export default async function handler(req: VercelRequest, res: VercelResponse) {
+  if (req.method === "OPTIONS") return res.status(204).end();
   if (req.method !== "POST") {
     return res.status(405).json({ ok: false, error: "Method Not Allowed" });
   }
 
   if (!BOARD_API_BASE_URL) {
-    return res.status(500).json({ ok: false, error: "BOARD_API_BASE_URL missing" });
+    return res.status(500).json({ ok: false, error: "BOARD_API_BASE_URL missing (check Preview env scope)" });
   }
   if (!ADMIN_TOKEN_AI) {
-    return res.status(500).json({ ok: false, error: "ADMIN_TOKEN_AI missing" });
+    return res.status(500).json({ ok: false, error: "ADMIN_TOKEN_AI missing (check Preview env scope)" });
+  }
+
+  const contentType = String(req.headers["content-type"] ?? "");
+  if (!contentType) {
+    return res.status(400).json({ ok: false, error: "Missing Content-Type" });
   }
 
   try {
-    const upstream = await fetch(`${BOARD_API_BASE_URL}/api/v1/ai/extract`, {
+    const bodyBuf = await readBody(req);
+    const upstreamUrl = `${BOARD_API_BASE_URL}/api/v1/ai/extract`;
+
+    const upstream = await fetch(upstreamUrl, {
       method: "POST",
       headers: {
-        // multipart boundary 유지 위해 원본 content-type 그대로 전달
-        "content-type": String(req.headers["content-type"] ?? ""),
+        "content-type": contentType,   // boundary 포함
         "x-admin-token": ADMIN_TOKEN_AI,
       },
-      body: req as any, // stream pass-through
+      body: bodyBuf,
     });
 
-    // content-type 정도만 전달
+    const outBuf = Buffer.from(await upstream.arrayBuffer());
+
     const ct = upstream.headers.get("content-type");
     if (ct) res.setHeader("content-type", ct);
 
-    const buf = Buffer.from(await upstream.arrayBuffer());
-    return res.status(upstream.status).send(buf);
+    // ✅ 업스트림 status/바디 그대로 전달 → 다음 에러에서 원인 바로 보임
+    return res.status(upstream.status).send(outBuf);
   } catch (e: any) {
-    console.error("admin proxy /api/ai/extract error:", e?.message);
-    return res.status(500).json({ ok: false, error: "Proxy failed" });
+    console.error("admin proxy /api/ai/extract error:", {
+      message: e?.message,
+      stack: e?.stack,
+      hasBoardUrl: Boolean(BOARD_API_BASE_URL),
+      hasAdminToken: Boolean(ADMIN_TOKEN_AI),
+    });
+
+    return res.status(500).json({
+      ok: false,
+      error: "Proxy failed",
+      detail: e?.message ?? String(e),
+    });
   }
 }

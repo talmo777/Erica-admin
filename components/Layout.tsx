@@ -59,7 +59,7 @@ export const AdminLayout: React.FC = () => {
           >
             <img src={HYU_LOGO_URL} alt="Hanyang Logo" className="w-8 h-8 rounded" />
             <div>
-              <h1 className="font-bold text-lg text-gray-900 leading-tight">ERICA Board</h1>
+              <h1 className="font-bold text-lg text-gray-900 leading-tight">HY-LINK</h1>
               <p className="text-xs text-gray-500">관리자 시스템</p>
             </div>
           </a>

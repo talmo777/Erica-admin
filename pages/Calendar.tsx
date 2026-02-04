@@ -292,7 +292,7 @@ const Calendar: React.FC = () => {
           <div className="bg-white rounded-xl border p-5">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
-                <span className="text-sm font-semibold text-slate-800">🔥 오늘의 마감</span>
+                <span className="text-sm font-semibold text-slate-800"> 오늘의 마감</span>
                 <span className="text-xs px-2 py-1 rounded-full bg-slate-100 text-slate-600">
                   {today.getMonth() + 1}/{today.getDate()} 기준
                 </span>

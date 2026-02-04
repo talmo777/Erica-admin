@@ -1,9 +1,57 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { HYU_LOGO_URL } from '../constants';
 
 export const Landing: React.FC = () => {
   const navigate = useNavigate();
+
+  const heroRef = useRef<HTMLDivElement | null>(null);
+  const rafRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    const el = heroRef.current;
+    if (!el) return;
+
+    // target: pointer position (0~1), cur: smoothed
+    let targetX = 0.5,
+      targetY = 0.45;
+    let curX = targetX,
+      curY = targetY;
+
+    const onMove = (e: PointerEvent) => {
+      const rect = el.getBoundingClientRect();
+      const x = (e.clientX - rect.left) / rect.width;
+      const y = (e.clientY - rect.top) / rect.height;
+      targetX = Math.min(1, Math.max(0, x));
+      targetY = Math.min(1, Math.max(0, y));
+    };
+
+    const onLeave = () => {
+      targetX = 0.5;
+      targetY = 0.45;
+    };
+
+    const tick = () => {
+      // low-pass smoothing
+      curX += (targetX - curX) * 0.08;
+      curY += (targetY - curY) * 0.08;
+
+      el.style.setProperty('--mx', String(curX));
+      el.style.setProperty('--my', String(curY));
+
+      rafRef.current = requestAnimationFrame(tick);
+    };
+
+    el.addEventListener('pointermove', onMove, { passive: true });
+    el.addEventListener('pointerleave', onLeave, { passive: true });
+    rafRef.current = requestAnimationFrame(tick);
+
+    return () => {
+      el.removeEventListener('pointermove', onMove);
+      el.removeEventListener('pointerleave', onLeave);
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    };
+  }, []);
 
   return (
     <div className="min-h-screen bg-white flex flex-col">
@@ -21,7 +69,10 @@ export const Landing: React.FC = () => {
       </header>
 
       {/* ✅ HERO */}
-      <main className="relative flex-1 flex flex-col justify-center items-center text-center p-4 overflow-hidden">
+      <main
+        ref={heroRef}
+        className="hero relative flex-1 flex flex-col justify-center items-center text-center p-4 overflow-hidden"
+      >
         {/* ---- background layer ---- */}
         <div className="absolute inset-0 pointer-events-none">
           {/* subtle grid */}
@@ -38,18 +89,20 @@ export const Landing: React.FC = () => {
             }}
           />
 
-          {/* moving blobs (very subtle) */}
+          {/* interactive blobs */}
           <div className="blob blob-a" />
           <div className="blob blob-b" />
           <div className="blob blob-c" />
 
-
+          {/* cursor spotlight */}
+          <div className="spotlight" />
         </div>
 
         {/* ---- content layer ---- */}
-        <div className="relative max-w-2xl space-y-8">
+        <div className="relative z-10 max-w-2xl space-y-8">
           <h1 className="text-4xl md:text-6xl font-extrabold text-gray-900 tracking-tight">
-            ERICA 공모전을<br />
+            ERICA 공모전을
+            <br />
             <span className="text-blue-600">한 곳에서 관리하세요</span>
           </h1>
 
@@ -71,51 +124,65 @@ export const Landing: React.FC = () => {
 
         {/* component-scoped css */}
         <style>{`
+          .hero {
+            --mx: 0.5;
+            --my: 0.45;
+          }
+
           .blob {
             position: absolute;
-            width: 520px;
-            height: 520px;
             border-radius: 9999px;
-            filter: blur(60px);
-            opacity: 0.28;
+            filter: blur(48px);
+            opacity: 0.22;
             transform: translate3d(0,0,0);
             will-change: transform;
           }
 
+          /* base positions + parallax (cursor-follow) */
           .blob-a {
+            width: 520px;
+            height: 520px;
             left: -180px;
             top: 60px;
-            background: radial-gradient(circle at 30% 30%, rgba(37,99,235,0.85), rgba(37,99,235,0.0) 60%);
-            animation: driftA 12s ease-in-out infinite;
+            background: radial-gradient(circle at 30% 30%, rgba(37,99,235,0.85), rgba(37,99,235,0) 60%);
+            transform: translate3d(calc((var(--mx) - 0.5) * 70px), calc((var(--my) - 0.5) * 45px), 0);
           }
 
           .blob-b {
-            right: -200px;
-            top: 120px;
-            background: radial-gradient(circle at 40% 40%, rgba(30,64,175,0.75), rgba(30,64,175,0.0) 62%);
-            animation: driftB 14s ease-in-out infinite;
+            width: 560px;
+            height: 560px;
+            right: -220px;
+            top: 110px;
+            background: radial-gradient(circle at 40% 40%, rgba(30,64,175,0.75), rgba(30,64,175,0) 62%);
+            transform: translate3d(calc((var(--mx) - 0.5) * -80px), calc((var(--my) - 0.5) * 55px), 0);
           }
 
           .blob-c {
-            left: 20%;
-            bottom: -220px;
-            background: radial-gradient(circle at 50% 50%, rgba(148,163,184,0.75), rgba(148,163,184,0.0) 65%);
-            animation: driftC 16s ease-in-out infinite;
+            width: 520px;
+            height: 520px;
+            left: 50%;
+            bottom: -260px;
+            margin-left: -260px;
+            background: radial-gradient(circle at 50% 50%, rgba(148,163,184,0.65), rgba(148,163,184,0) 65%);
+            transform: translate3d(calc((var(--mx) - 0.5) * 40px), calc((var(--my) - 0.5) * -40px), 0);
           }
 
-          @keyframes driftA {
-            0%, 100% { transform: translate(0px, 0px) scale(1); }
-            50%      { transform: translate(40px, 20px) scale(1.03); }
+          /* spotlight follows cursor; subtle, not flashy */
+          .spotlight {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            background: radial-gradient(
+              460px circle at calc(var(--mx) * 100%) calc(var(--my) * 100%),
+              rgba(37,99,235,0.10),
+              rgba(255,255,255,0) 62%
+            );
           }
 
-          @keyframes driftB {
-            0%, 100% { transform: translate(0px, 0px) scale(1); }
-            50%      { transform: translate(-35px, 25px) scale(1.02); }
-          }
-
-          @keyframes driftC {
-            0%, 100% { transform: translate(0px, 0px) scale(1); }
-            50%      { transform: translate(18px, -28px) scale(1.04); }
+          /* reduce motion for accessibility */
+          @media (prefers-reduced-motion: reduce) {
+            .blob-a, .blob-b, .blob-c { transform: none; }
+            .spotlight { background: none; }
           }
         `}</style>
       </main>
@@ -127,4 +194,3 @@ export const Landing: React.FC = () => {
     </div>
   );
 };
-

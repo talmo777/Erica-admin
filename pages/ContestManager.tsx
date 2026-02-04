@@ -3,6 +3,8 @@ import { Contest, ContestCategory, ContestStatus, TARGET_OPTIONS } from '../type
 import { ContestRepository } from '../services/repository';
 import { extractContestInfo } from '../services/aiExtract';
 
+const contestRepository = new ContestRepository();
+
 type Mode = 'create' | 'edit';
 
 const emptyContest: Contest = {

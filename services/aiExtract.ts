@@ -9,7 +9,7 @@ export type AiExtractResult = {
 };
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL as string | undefined;
-const ADMIN_TOKEN = import.meta.env.VITE_ADMIN_TOKEN as string | undefined;
+const ADMIN_TOKEN = import.meta.env.VITE_ADMIN_TOKEN_AI as string | undefined;
 
 /**
  * 백엔드에 multipart/form-data로 파일 업로드 → 추출 결과 JSON 받기

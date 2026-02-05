@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 
-const BOARD_API_BASE_URL = (process.env.BOARD_API_BASE_URL ?? "").replace(/\/+$/, "");
+const BOARD_API_BASE_URL = (process.env.VITE_BOARD_API_BASE_URL ?? "").replace(/\/+$/, "");
 const ADMIN_TOKEN_AI = (process.env.ADMIN_TOKEN_AI ?? "").trim();
 
 async function readBody(req: VercelRequest): Promise<Buffer> {
@@ -18,7 +18,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   if (!BOARD_API_BASE_URL) {
-    return res.status(500).json({ ok: false, error: "BOARD_API_BASE_URL missing (check Preview env scope)" });
+    return res.status(500).json({ ok: false, error: "VITE_BOARD_API_BASE_URL missing (check Preview env scope)" });
   }
   if (!ADMIN_TOKEN_AI) {
     return res.status(500).json({ ok: false, error: "ADMIN_TOKEN_AI missing (check Preview env scope)" });

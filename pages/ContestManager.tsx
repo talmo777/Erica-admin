@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Contest, ContestCategory, ContestStatus, TARGET_OPTIONS } from '../types';
-import { ContestRepository } from '../services/repository';
 import { extractContestInfo, AiExtractResult } from '../services/aiExtract';
+import { getContests, createContest, patchContest, deleteContest, ApiContestUpsertBody } from '../services/api';
+import { mapApiContestToContest } from '../services/contestMapper';
 
 type Mode = 'create' | 'edit';
 
@@ -45,6 +46,28 @@ function buildDescriptionOptionA(d: AiDraft): string {
   return lines.join('\n').trim();
 }
 
+function toApiStatus(s: ContestStatus): 'draft' | 'published' | 'archived' {
+  if (s === ContestStatus.PUBLISHED) return 'published';
+  if (s === ContestStatus.ARCHIVED) return 'archived';
+  return 'draft';
+}
+
+// Admin enum: "IC-PBL" / API: "ICPBL"
+function toApiCategory(c: ContestCategory): '서포터즈' | 'ICPBL' | '교내 공모전' | '대외활동' {
+  if (c === ContestCategory.ICPBL) return 'ICPBL';
+  return c as any;
+}
+
+function dateOnlyOrNull(v?: string): string | null {
+  const s = (v ?? '').trim();
+  if (!s) return null;
+  // 이미 YYYY-MM-DD면 그대로, 아니면 Date 파싱 시도
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  const d = new Date(s);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toISOString().slice(0, 10);
+}
+
 export const ContestManager: React.FC = () => {
   const [contests, setContests] = useState<Contest[]>([]);
 
@@ -61,19 +84,23 @@ export const ContestManager: React.FC = () => {
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
 
-  // ✅ Step2에서 편집할 AI draft (옵션 A용)
   const [aiDraft, setAiDraft] = useState<AiDraft | null>(null);
+
+  const loadList = async () => {
+    const items = await getContests();
+    setContests(items.map(mapApiContestToContest));
+  };
 
   useEffect(() => {
     (async () => {
       try {
-        const list = await ContestRepository.getAll();
-        setContests(list);
+        await loadList();
       } catch (e) {
         console.error(e);
         alert('공모전 목록 로딩 실패');
       }
     })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const sorted = useMemo(() => {
@@ -81,8 +108,7 @@ export const ContestManager: React.FC = () => {
   }, [contests]);
 
   const refresh = async () => {
-    const list = await ContestRepository.getAll();
-    setContests(list);
+    await loadList();
   };
 
   const resetForm = () => {
@@ -101,7 +127,6 @@ export const ContestManager: React.FC = () => {
   };
 
   const startEdit = (c: Contest) => {
-    // 편집 모드에서는 기존 description 전체를 그대로 편집(옵션 A 파싱은 MVP 범위 밖)
     setMode('edit');
     setEditingId(c.id);
     setStep(2);
@@ -157,11 +182,9 @@ export const ContestManager: React.FC = () => {
     try {
       const r: AiExtractResult = await extractContestInfo(uploadFile);
 
-      // ✅ 제목은 실무자 입력 우선: 비어있을 때만 AI 제목요약으로 자동 채움
       setForm((prev) => ({
         ...prev,
         title: prev.title.trim() ? prev.title : (r.titleSummary || prev.title),
-        // dates는 form에도 채워두면 Step1/리스트에 일관성 생김
         startDate: r.scheduleStart ?? prev.startDate,
         endDate: r.scheduleEnd ?? prev.endDate,
       }));
@@ -185,35 +208,32 @@ export const ContestManager: React.FC = () => {
   };
 
   const save = async () => {
-    // 실무자 필수 입력
     if (!form.title.trim()) return alert('공모전 제목은 필수입니다.');
     if (!form.applyUrl.trim()) return alert('신청 URL(Deep Link)은 필수입니다.');
     if (!form.targets.length) return alert('게시 대상을 최소 1개 선택하세요.');
 
-    if (!aiDraft) {
-      // AI draft가 없으면(예: 편집 진입/AI 미사용) form.description 그대로 저장
-      // 그래도 Step2에서 저장 가능하게 허용
-    }
-
     try {
-      const now = new Date().toISOString();
+      const description = aiDraft ? buildDescriptionOptionA(aiDraft) : form.description;
 
-      const payload: Contest = {
-        ...form,
-        id: isEditing && editingId ? editingId : crypto.randomUUID(),
-        createdAt: isEditing ? form.createdAt : now,
-        updatedAt: now,
-        viewCount: form.viewCount ?? 0,
-
-        // ✅ 옵션 A: description에 AI 요약 블록 + 본문을 합쳐 저장
-        description: aiDraft ? buildDescriptionOptionA(aiDraft) : form.description,
-
-        // ✅ 일정은 Contest 필드(startDate/endDate)에 반영
-        startDate: aiDraft?.scheduleStart ?? form.startDate,
-        endDate: aiDraft?.scheduleEnd ?? form.endDate,
+      const body: ApiContestUpsertBody = {
+        title: form.title.trim(),
+        description: description ?? '',
+        applyUrl: form.applyUrl.trim(),
+        sourceUrl: null,
+        posterUrl: form.imageUrl?.trim() ? form.imageUrl.trim() : null,
+        category: toApiCategory(form.category),
+        status: toApiStatus(form.status),
+        startDate: dateOnlyOrNull(aiDraft?.scheduleStart ?? form.startDate),
+        endDate: dateOnlyOrNull(aiDraft?.scheduleEnd ?? form.endDate),
+        targets: [...form.targets],
       };
 
-      await ContestRepository.save(payload);
+      if (isEditing && editingId) {
+        await patchContest(editingId, body);
+      } else {
+        await createContest(body);
+      }
+
       await refresh();
       resetForm();
     } catch (e: any) {
@@ -225,7 +245,7 @@ export const ContestManager: React.FC = () => {
   const remove = async (id: string) => {
     if (!confirm('삭제할까요?')) return;
     try {
-      await ContestRepository.delete(id);
+      await deleteContest(id);
       await refresh();
       if (editingId === id) resetForm();
     } catch (e: any) {
@@ -246,7 +266,6 @@ export const ContestManager: React.FC = () => {
         </button>
       </div>
 
-      {/* ===== FORM ===== */}
       <div className="rounded-2xl border bg-white p-5 shadow-sm">
         <div className="flex items-center justify-between">
           <div className="text-sm text-slate-600">
@@ -264,7 +283,6 @@ export const ContestManager: React.FC = () => {
 
         {step === 1 && (
           <div className="mt-5 grid grid-cols-1 md:grid-cols-2 gap-5">
-            {/* Title */}
             <div className="space-y-2">
               <label className="text-sm font-medium">공모전 제목 *</label>
               <input
@@ -275,7 +293,6 @@ export const ContestManager: React.FC = () => {
               />
             </div>
 
-            {/* Apply URL */}
             <div className="space-y-2">
               <label className="text-sm font-medium">신청 URL (Deep Link) *</label>
               <input
@@ -286,7 +303,6 @@ export const ContestManager: React.FC = () => {
               />
             </div>
 
-            {/* Category */}
             <div className="space-y-2">
               <label className="text-sm font-medium">카테고리</label>
               <select
@@ -301,7 +317,6 @@ export const ContestManager: React.FC = () => {
               </select>
             </div>
 
-            {/* Status */}
             <div className="space-y-2">
               <label className="text-sm font-medium">게시 상태</label>
               <select
@@ -315,7 +330,6 @@ export const ContestManager: React.FC = () => {
               </select>
             </div>
 
-            {/* Targets */}
             <div className="md:col-span-2 space-y-2">
               <label className="text-sm font-medium">게시 대상 (복수 선택 가능) *</label>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -339,7 +353,6 @@ export const ContestManager: React.FC = () => {
               </div>
             </div>
 
-            {/* Upload */}
             <div className="md:col-span-2 rounded-2xl border bg-white p-4">
               <div className="flex items-center justify-between gap-3">
                 <div>
@@ -391,7 +404,6 @@ export const ContestManager: React.FC = () => {
 
         {step === 2 && (
           <div className="mt-5 grid grid-cols-1 md:grid-cols-2 gap-5">
-            {/* Preview left */}
             <div className="rounded-2xl border bg-slate-50 p-4">
               <div className="text-sm font-semibold text-slate-900 mb-3">미리보기</div>
               {uploadPreviewUrl ? (
@@ -408,9 +420,7 @@ export const ContestManager: React.FC = () => {
               )}
             </div>
 
-            {/* Editable right */}
             <div className="space-y-4">
-              {/* AI 구조화 필드 */}
               <div className="rounded-2xl border bg-white p-4 space-y-3">
                 <div className="text-sm font-semibold text-slate-900">AI 추출 요약(수정 가능)</div>
 
@@ -466,7 +476,6 @@ export const ContestManager: React.FC = () => {
                 </div>
               </div>
 
-              {/* 본문 */}
               <div className="rounded-2xl border bg-white p-4">
                 <div className="text-sm font-semibold text-slate-900">본문(수정 가능)</div>
                 <textarea
@@ -499,7 +508,6 @@ export const ContestManager: React.FC = () => {
         )}
       </div>
 
-      {/* ===== LIST ===== */}
       <div className="rounded-2xl border bg-white p-5">
         <div className="text-sm font-semibold text-slate-900 mb-4">등록된 공모전</div>
         <div className="space-y-3">

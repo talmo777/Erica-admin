@@ -1,7 +1,14 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Contest, ContestCategory, ContestStatus, TARGET_OPTIONS } from '../types';
 import { extractContestInfo, AiExtractResult } from '../services/aiExtract';
-import { getContests, createContest, patchContest, deleteContest, ApiContestUpsertBody } from '../services/api';
+import {
+  getContests,
+  createContest,
+  patchContest,
+  deleteContest,
+  uploadPoster,
+  ApiContestUpsertBody,
+} from '../services/api';
 import { mapApiContestToContest } from '../services/contestMapper';
 
 type Mode = 'create' | 'edit';
@@ -26,9 +33,9 @@ type AiDraft = {
   titleSummary: string;
   organizer: string;
   target: string;
-  scheduleStart: string; // '' allowed
-  scheduleEnd: string;   // '' allowed
-  body: string;          // description 본문
+  scheduleStart: string;
+  scheduleEnd: string;
+  body: string;
 };
 
 function buildDescriptionOptionA(d: AiDraft): string {
@@ -52,7 +59,6 @@ function toApiStatus(s: ContestStatus): 'draft' | 'published' | 'archived' {
   return 'draft';
 }
 
-// Admin enum: "IC-PBL" / API: "ICPBL"
 function toApiCategory(c: ContestCategory): '서포터즈' | 'ICPBL' | '교내 공모전' | '대외활동' {
   if (c === ContestCategory.ICPBL) return 'ICPBL';
   return c as any;
@@ -61,7 +67,6 @@ function toApiCategory(c: ContestCategory): '서포터즈' | 'ICPBL' | '교내 �
 function dateOnlyOrNull(v?: string): string | null {
   const s = (v ?? '').trim();
   if (!s) return null;
-  // 이미 YYYY-MM-DD면 그대로, 아니면 Date 파싱 시도
   if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
   const d = new Date(s);
   if (Number.isNaN(d.getTime())) return null;
@@ -215,12 +220,23 @@ export const ContestManager: React.FC = () => {
     try {
       const description = aiDraft ? buildDescriptionOptionA(aiDraft) : form.description;
 
+      // ✅ 1) posterUrl 결정:
+      // - form.imageUrl에 이미 URL이 있으면 그걸 사용
+      // - 없고 uploadFile이 이미지면 업로드해서 URL 생성
+      let posterUrlToSave: string | null = form.imageUrl?.trim() ? form.imageUrl.trim() : null;
+
+      if (!posterUrlToSave && uploadFile && uploadFile.type.startsWith('image/')) {
+        posterUrlToSave = await uploadPoster(uploadFile);
+        // 선택: 폼에도 반영(편집/재저장 시 유지)
+        setForm((prev) => ({ ...prev, imageUrl: posterUrlToSave ?? '' }));
+      }
+
       const body: ApiContestUpsertBody = {
         title: form.title.trim(),
         description: description ?? '',
         applyUrl: form.applyUrl.trim(),
         sourceUrl: null,
-        posterUrl: form.imageUrl?.trim() ? form.imageUrl.trim() : null,
+        posterUrl: posterUrlToSave,
         category: toApiCategory(form.category),
         status: toApiStatus(form.status),
         startDate: dateOnlyOrNull(aiDraft?.scheduleStart ?? form.startDate),
@@ -258,10 +274,7 @@ export const ContestManager: React.FC = () => {
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold text-slate-900">공모전 게시 / 배포</h1>
-        <button
-          onClick={resetForm}
-          className="px-3 py-2 rounded-lg border text-sm hover:bg-slate-50"
-        >
+        <button onClick={resetForm} className="px-3 py-2 rounded-lg border text-sm hover:bg-slate-50">
           새 공모전 등록
         </button>
       </div>
@@ -272,10 +285,7 @@ export const ContestManager: React.FC = () => {
             {step === 1 ? '1) 기본정보 + 파일 업로드' : '2) 미리보기/검토 후 게시'}
           </div>
           {step === 2 && (
-            <button
-              onClick={() => setStep(1)}
-              className="px-3 py-2 rounded-lg border text-sm hover:bg-slate-50"
-            >
+            <button onClick={() => setStep(1)} className="px-3 py-2 rounded-lg border text-sm hover:bg-slate-50">
               ← 이전
             </button>
           )}
@@ -340,12 +350,7 @@ export const ContestManager: React.FC = () => {
                       key={t}
                       className="flex items-center gap-3 px-3 py-2.5 rounded-xl border bg-slate-50/40 hover:bg-slate-50 cursor-pointer"
                     >
-                      <input
-                        type="checkbox"
-                        checked={checked}
-                        onChange={() => toggleTarget(t)}
-                        className="w-4 h-4"
-                      />
+                      <input type="checkbox" checked={checked} onChange={() => toggleTarget(t)} className="w-4 h-4" />
                       <span className="text-sm text-slate-800">{t}</span>
                     </label>
                   );
@@ -367,7 +372,7 @@ export const ContestManager: React.FC = () => {
                   disabled={aiLoading}
                   className={[
                     'px-4 py-2 rounded-xl text-sm font-semibold text-white',
-                    aiLoading ? 'bg-slate-400 cursor-not-allowed' : 'bg-sky-700 hover:bg-sky-600'
+                    aiLoading ? 'bg-slate-400 cursor-not-allowed' : 'bg-sky-700 hover:bg-sky-600',
                   ].join(' ')}
                 >
                   {aiLoading ? '정리 중...' : '내용 작성(AI)'}
@@ -387,14 +392,16 @@ export const ContestManager: React.FC = () => {
 
                 <div className="rounded-xl border bg-slate-50 p-3 min-h-[140px]">
                   <div className="text-xs text-slate-600 mb-2">미리보기(로컬)</div>
-                  {!uploadPreviewUrl && (
-                    <div className="text-sm text-slate-400">업로드하면 여기서 미리 볼 수 있어요.</div>
-                  )}
+                  {!uploadPreviewUrl && <div className="text-sm text-slate-400">업로드하면 여기서 미리 볼 수 있어요.</div>}
                   {uploadPreviewUrl && uploadFile?.type.startsWith('image/') && (
                     <img src={uploadPreviewUrl} className="max-h-[220px] rounded-lg border" />
                   )}
                   {uploadPreviewUrl && uploadFile?.type === 'application/pdf' && (
-                    <embed src={uploadPreviewUrl} type="application/pdf" className="w-full h-[220px] rounded-lg border bg-white" />
+                    <embed
+                      src={uploadPreviewUrl}
+                      type="application/pdf"
+                      className="w-full h-[220px] rounded-lg border bg-white"
+                    />
                   )}
                 </div>
               </div>
@@ -490,17 +497,11 @@ export const ContestManager: React.FC = () => {
               </div>
 
               <div className="flex items-center justify-end gap-3">
-                <button
-                  onClick={() => setStep(1)}
-                  className="px-4 py-2 rounded-xl border text-sm hover:bg-slate-50"
-                >
+                <button onClick={() => setStep(1)} className="px-4 py-2 rounded-xl border text-sm hover:bg-slate-50">
                   다시 추출/수정
                 </button>
-                <button
-                  onClick={save}
-                  className="px-5 py-2 rounded-xl bg-gray-900 text-white text-sm font-semibold hover:bg-gray-800"
-                >
-                  {isEditing ? '수정 저장' : (form.status === ContestStatus.PUBLISHED ? '게시' : '저장')}
+                <button onClick={save} className="px-5 py-2 rounded-xl bg-gray-900 text-white text-sm font-semibold hover:bg-gray-800">
+                  {isEditing ? '수정 저장' : form.status === ContestStatus.PUBLISHED ? '게시' : '저장'}
                 </button>
               </div>
             </div>
@@ -521,16 +522,10 @@ export const ContestManager: React.FC = () => {
                 </div>
               </div>
               <div className="flex gap-2 shrink-0">
-                <button
-                  onClick={() => startEdit(c)}
-                  className="px-3 py-2 rounded-lg border text-sm hover:bg-white"
-                >
+                <button onClick={() => startEdit(c)} className="px-3 py-2 rounded-lg border text-sm hover:bg-white">
                   수정
                 </button>
-                <button
-                  onClick={() => remove(c.id)}
-                  className="px-3 py-2 rounded-lg border text-sm text-red-600 hover:bg-white"
-                >
+                <button onClick={() => remove(c.id)} className="px-3 py-2 rounded-lg border text-sm text-red-600 hover:bg-white">
                   삭제
                 </button>
               </div>

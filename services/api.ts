@@ -1,11 +1,11 @@
 // src/services/api.ts
-const API_BASE_RAW = import.meta.env.BOARD_API_BASE_URL as string | undefined;
+const API_BASE_RAW = import.meta.env.VITE_BOARD_API_BASE_URL as string | undefined;
 // trailing slash 제거해서 "//api/..." 같은 CORS/리다이렉트 이슈 방지
 const API_BASE = API_BASE_RAW?.replace(/\/+$/, "");
 
 // (선택) Board API에서 관리자 토큰을 요구하는 경우에만 세팅
 // Vercel env에 BOARD_API_ADMIN_TOKEN 추가해서 사용
-const ADMIN_TOKEN = (import.meta.env.BOARD_API_ADMIN_TOKEN as string | undefined) ?? undefined;
+const ADMIN_TOKEN = (import.meta.env.VITE_BOARD_API_ADMIN_TOKEN as string | undefined) ?? undefined;
 
 export type ApiContest = {
   id: string;
@@ -38,7 +38,7 @@ export type ApiContestUpsertBody = {
 };
 
 function requireBase() {
-  if (!API_BASE) throw new Error("BOARD_API_BASE_URL is not set");
+  if (!API_BASE) throw new Error("VITE_BOARD_API_BASE_URL is not set");
 }
 
 function authHeaders(): Record<string, string> {
@@ -120,3 +120,4 @@ export async function deleteContest(id: string): Promise<{ ok: boolean }> {
 
   return (await res.json()) as { ok: boolean };
 }
+

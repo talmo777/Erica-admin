@@ -1,5 +1,5 @@
 // src/services/api.ts
-const API_BASE = import.meta.env.VITE_API_BASE_URL;
+const API_BASE = import.meta.env.BOARD_API_BASE_URL;
 
 export type ApiContest = {
   id: string;
@@ -19,7 +19,7 @@ export type ApiContest = {
 };
 
 export async function getContests(): Promise<ApiContest[]> {
-  if (!API_BASE) throw new Error('VITE_API_BASE_URL is not set');
+  if (!API_BASE) throw new Error('BOARD_API_BASE_URL is not set');
 
   const res = await fetch(`${API_BASE}/api/v1/contests`);
   if (!res.ok) {
@@ -30,3 +30,4 @@ export async function getContests(): Promise<ApiContest[]> {
   const data = (await res.json()) as { items: ApiContest[] };
   return data.items ?? [];
 }
+

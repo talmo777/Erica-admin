@@ -59,8 +59,7 @@ function toApiStatus(s: ContestStatus): 'draft' | 'published' | 'archived' {
   return 'draft';
 }
 
-function toApiCategory(c: ContestCategory): '서포터즈' | 'ICPBL' | '교내 공모전' | '대외활동' {
-  if (c === ContestCategory.ICPBL) return 'ICPBL';
+function toApiCategory(c: ContestCategory): '서포터즈' | 'ICPBL' | '교내 공모전' {
   return c as any;
 }
 
@@ -74,145 +73,65 @@ function dateOnlyOrNull(v?: string): string | null {
 }
 
 export const ContestManager: React.FC = () => {
-  const [contests, setContests] = useState<Contest[]>([]);
-
   const [mode, setMode] = useState<Mode>('create');
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const isEditing = mode === 'edit' && Boolean(editingId);
+  const [list, setList] = useState<Contest[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
 
-  const [step, setStep] = useState<1 | 2>(1);
-  const [form, setForm] = useState<Contest>({ ...emptyContest });
-
+  const [form, setForm] = useState<Contest>(emptyContest);
   const [uploadFile, setUploadFile] = useState<File | null>(null);
-  const [uploadPreviewUrl, setUploadPreviewUrl] = useState<string | null>(null);
 
+  const [aiUrl, setAiUrl] = useState('');
   const [aiLoading, setAiLoading] = useState(false);
-  const [aiError, setAiError] = useState<string | null>(null);
-
+  const [aiResult, setAiResult] = useState<AiExtractResult | null>(null);
   const [aiDraft, setAiDraft] = useState<AiDraft | null>(null);
 
-  const loadList = async () => {
-    const items = await getContests();
-    setContests(items.map(mapApiContestToContest));
-  };
+  const selected = useMemo(() => list.find((x) => x.id === selectedId) ?? null, [list, selectedId]);
+
+  async function refresh() {
+    setLoading(true);
+    try {
+      const rows = await getContests();
+      setList(rows.map(mapApiContestToContest));
+    } finally {
+      setLoading(false);
+    }
+  }
 
   useEffect(() => {
-    (async () => {
-      try {
-        await loadList();
-      } catch (e) {
-        console.error(e);
-        alert('공모전 목록 로딩 실패');
-      }
-    })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    refresh();
   }, []);
 
-  const sorted = useMemo(() => {
-    return [...contests].sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''));
-  }, [contests]);
-
-  const refresh = async () => {
-    await loadList();
-  };
-
-  const resetForm = () => {
+  function resetForm() {
     setMode('create');
-    setEditingId(null);
-    setStep(1);
-    setForm({ ...emptyContest });
-
+    setSelectedId(null);
+    setForm(emptyContest);
+    setUploadFile(null);
+    setAiUrl('');
+    setAiResult(null);
     setAiDraft(null);
-    setAiError(null);
-    setAiLoading(false);
+  }
 
-    setUploadFile(null);
-    if (uploadPreviewUrl) URL.revokeObjectURL(uploadPreviewUrl);
-    setUploadPreviewUrl(null);
-  };
-
-  const startEdit = (c: Contest) => {
+  function loadForEdit(c: Contest) {
     setMode('edit');
-    setEditingId(c.id);
-    setStep(2);
-
-    setForm({ ...c });
-    setAiDraft({
-      titleSummary: '',
-      organizer: '',
-      target: '',
-      scheduleStart: c.startDate || '',
-      scheduleEnd: c.endDate || '',
-      body: c.description || '',
+    setSelectedId(c.id);
+    setForm({
+      ...c,
+      imageUrl: c.imageUrl || '',
+      description: c.description || '',
     });
-
     setUploadFile(null);
-    if (uploadPreviewUrl) URL.revokeObjectURL(uploadPreviewUrl);
-    setUploadPreviewUrl(null);
+    setAiDraft(null);
+  }
 
-    setAiError(null);
-    setAiLoading(false);
-  };
+  async function onDelete(id: string) {
+    if (!confirm('삭제할까요?')) return;
+    await deleteContest(id);
+    await refresh();
+    resetForm();
+  }
 
-  const onPickFile = (file: File | null) => {
-    setUploadFile(file);
-    setAiError(null);
-
-    if (uploadPreviewUrl) URL.revokeObjectURL(uploadPreviewUrl);
-    if (!file) {
-      setUploadPreviewUrl(null);
-      return;
-    }
-    setUploadPreviewUrl(URL.createObjectURL(file));
-  };
-
-  const toggleTarget = (t: string) => {
-    setForm((prev) => {
-      const has = prev.targets.includes(t);
-      return {
-        ...prev,
-        targets: has ? prev.targets.filter((x) => x !== t) : [...prev.targets, t],
-      };
-    });
-  };
-
-  const runAi = async () => {
-    if (!uploadFile) {
-      setAiError('파일을 먼저 업로드하세요.');
-      return;
-    }
-    setAiLoading(true);
-    setAiError(null);
-
-    try {
-      const r: AiExtractResult = await extractContestInfo(uploadFile);
-
-      setForm((prev) => ({
-        ...prev,
-        title: prev.title.trim() ? prev.title : (r.titleSummary || prev.title),
-        startDate: r.scheduleStart ?? prev.startDate,
-        endDate: r.scheduleEnd ?? prev.endDate,
-      }));
-
-      setAiDraft({
-        titleSummary: r.titleSummary || '',
-        organizer: r.organizer ?? '',
-        target: r.target ?? '',
-        scheduleStart: r.scheduleStart ?? '',
-        scheduleEnd: r.scheduleEnd ?? '',
-        body: r.description || '',
-      });
-
-      setStep(2);
-    } catch (e: any) {
-      console.error(e);
-      setAiError(e?.message ?? 'AI 내용 작성 중 오류');
-    } finally {
-      setAiLoading(false);
-    }
-  };
-
-  const save = async () => {
+  async function onSubmit() {
     if (!form.title.trim()) return alert('공모전 제목은 필수입니다.');
     if (!form.applyUrl.trim()) return alert('신청 URL(Deep Link)은 필수입니다.');
     if (!form.targets.length) return alert('게시 대상을 최소 1개 선택하세요.');
@@ -226,313 +145,327 @@ export const ContestManager: React.FC = () => {
       let posterUrlToSave: string | null = form.imageUrl?.trim() ? form.imageUrl.trim() : null;
 
       if (!posterUrlToSave && uploadFile && uploadFile.type.startsWith('image/')) {
-        posterUrlToSave = await uploadPoster(uploadFile);
-        // 선택: 폼에도 반영(편집/재저장 시 유지)
-        setForm((prev) => ({ ...prev, imageUrl: posterUrlToSave ?? '' }));
+        const up = await uploadPoster(uploadFile);
+        posterUrlToSave = up.posterUrl;
       }
 
       const body: ApiContestUpsertBody = {
         title: form.title.trim(),
         description: description ?? '',
-        applyUrl: form.applyUrl.trim(),
-        sourceUrl: null,
-        posterUrl: posterUrlToSave,
+        apply_url: form.applyUrl.trim(),
+        poster_url: posterUrlToSave,
         category: toApiCategory(form.category),
+        targets: form.targets,
+        start_date: dateOnlyOrNull(form.startDate),
+        end_date: dateOnlyOrNull(form.endDate),
         status: toApiStatus(form.status),
-        startDate: dateOnlyOrNull(aiDraft?.scheduleStart ?? form.startDate),
-        endDate: dateOnlyOrNull(aiDraft?.scheduleEnd ?? form.endDate),
-        targets: [...form.targets],
       };
 
-      if (isEditing && editingId) {
-        await patchContest(editingId, body);
+      if (mode === 'edit' && selectedId) {
+        await patchContest(selectedId, body);
       } else {
         await createContest(body);
       }
 
       await refresh();
       resetForm();
+      alert('저장 완료');
     } catch (e: any) {
       console.error(e);
-      alert(e?.message ?? '저장 중 오류');
+      alert(e?.message ?? '저장 실패');
     }
-  };
+  }
 
-  const remove = async (id: string) => {
-    if (!confirm('삭제할까요?')) return;
+  async function runAiExtract() {
+    if (!aiUrl.trim()) return alert('원문 URL을 입력하세요.');
+    setAiLoading(true);
+    setAiResult(null);
+    setAiDraft(null);
     try {
-      await deleteContest(id);
-      await refresh();
-      if (editingId === id) resetForm();
+      const res = await extractContestInfo(aiUrl.trim());
+      setAiResult(res);
+
+      // AI 결과 → Draft 변환(Option A)
+      const draft: AiDraft = {
+        titleSummary: res.title_summary ?? '',
+        organizer: res.organizer ?? '',
+        target: res.target ?? '',
+        scheduleStart: res.schedule_start ?? '',
+        scheduleEnd: res.schedule_end ?? '',
+        body: res.body ?? '',
+      };
+      setAiDraft(draft);
+
+      // 폼 자동 채우기(필요 최소)
+      setForm((prev) => ({
+        ...prev,
+        title: res.title || prev.title,
+        applyUrl: res.apply_url || prev.applyUrl,
+        startDate: res.schedule_start || prev.startDate,
+        endDate: res.schedule_end || prev.endDate,
+      }));
     } catch (e: any) {
       console.error(e);
-      alert(e?.message ?? '삭제 중 오류');
+      alert(e?.message ?? 'AI 추출 실패');
+    } finally {
+      setAiLoading(false);
     }
-  };
+  }
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-slate-900">공모전 게시 / 배포</h1>
-        <button onClick={resetForm} className="px-3 py-2 rounded-lg border text-sm hover:bg-slate-50">
-          새 공모전 등록
-        </button>
-      </div>
-
-      <div className="rounded-2xl border bg-white p-5 shadow-sm">
-        <div className="flex items-center justify-between">
-          <div className="text-sm text-slate-600">
-            {step === 1 ? '1) 기본정보 + 파일 업로드' : '2) 미리보기/검토 후 게시'}
+    <div className="min-h-screen bg-slate-50">
+      <div className="max-w-7xl mx-auto px-6 py-10">
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h1 className="text-2xl font-bold">공모전 등록/관리</h1>
+            <p className="text-slate-600 mt-1">공모전 생성, 수정, 삭제 및 AI 요약을 지원합니다.</p>
           </div>
-          {step === 2 && (
-            <button onClick={() => setStep(1)} className="px-3 py-2 rounded-lg border text-sm hover:bg-slate-50">
-              ← 이전
-            </button>
-          )}
+          <button
+            onClick={resetForm}
+            className="px-4 py-2 rounded-xl bg-white border hover:bg-slate-100"
+          >
+            새로 작성
+          </button>
         </div>
 
-        {step === 1 && (
-          <div className="mt-5 grid grid-cols-1 md:grid-cols-2 gap-5">
-            <div className="space-y-2">
-              <label className="text-sm font-medium">공모전 제목 *</label>
-              <input
-                value={form.title}
-                onChange={(e) => setForm({ ...form, title: e.target.value })}
-                className="w-full px-4 py-3 rounded-xl border focus:outline-none focus:ring-2 focus:ring-sky-200"
-                placeholder="예) ERICA 창업 경진대회"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-sm font-medium">신청 URL (Deep Link) *</label>
-              <input
-                value={form.applyUrl}
-                onChange={(e) => setForm({ ...form, applyUrl: e.target.value })}
-                className="w-full px-4 py-3 rounded-xl border focus:outline-none focus:ring-2 focus:ring-sky-200"
-                placeholder="https://..."
-              />
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-sm font-medium">카테고리</label>
-              <select
-                value={form.category}
-                onChange={(e) => setForm({ ...form, category: e.target.value as ContestCategory })}
-                className="w-full px-4 py-3 rounded-xl border bg-white focus:outline-none focus:ring-2 focus:ring-sky-200"
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* Left: List */}
+          <div className="bg-white rounded-2xl shadow-sm border p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-semibold">목록</h2>
+              <button
+                onClick={refresh}
+                className="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-sm"
               >
-                <option value={ContestCategory.CAMPUS}>{ContestCategory.CAMPUS}</option>
-                <option value={ContestCategory.EXTERNAL}>{ContestCategory.EXTERNAL}</option>
-                <option value={ContestCategory.SUPPORTERS}>{ContestCategory.SUPPORTERS}</option>
-                <option value={ContestCategory.ICPBL}>{ContestCategory.ICPBL}</option>
-              </select>
+                새로고침
+              </button>
             </div>
 
-            <div className="space-y-2">
-              <label className="text-sm font-medium">게시 상태</label>
-              <select
-                value={form.status}
-                onChange={(e) => setForm({ ...form, status: e.target.value as ContestStatus })}
-                className="w-full px-4 py-3 rounded-xl border bg-white focus:outline-none focus:ring-2 focus:ring-sky-200"
-              >
-                <option value={ContestStatus.DRAFT}>DRAFT</option>
-                <option value={ContestStatus.PUBLISHED}>PUBLISHED</option>
-                <option value={ContestStatus.ARCHIVED}>ARCHIVED</option>
-              </select>
-            </div>
-
-            <div className="md:col-span-2 space-y-2">
-              <label className="text-sm font-medium">게시 대상 (복수 선택 가능) *</label>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                {TARGET_OPTIONS.map((t) => {
-                  const checked = form.targets.includes(t);
-                  return (
-                    <label
-                      key={t}
-                      className="flex items-center gap-3 px-3 py-2.5 rounded-xl border bg-slate-50/40 hover:bg-slate-50 cursor-pointer"
-                    >
-                      <input type="checkbox" checked={checked} onChange={() => toggleTarget(t)} className="w-4 h-4" />
-                      <span className="text-sm text-slate-800">{t}</span>
-                    </label>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div className="md:col-span-2 rounded-2xl border bg-white p-4">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <div className="text-sm font-semibold text-slate-900">안내문/포스터 업로드</div>
-                  <div className="text-xs text-slate-500">
-                    이미지/PDF 업로드 → “내용 작성(AI)” 누르면 자동 정리 후 미리보기로 이동
+            {loading ? (
+              <div className="text-slate-500">불러오는 중...</div>
+            ) : list.length === 0 ? (
+              <div className="text-slate-500">데이터가 없습니다.</div>
+            ) : (
+              <div className="space-y-3">
+                {list.map((c) => (
+                  <div
+                    key={c.id}
+                    className={`p-4 rounded-xl border cursor-pointer hover:bg-slate-50 ${
+                      selectedId === c.id ? 'ring-2 ring-sky-200 border-sky-200' : ''
+                    }`}
+                    onClick={() => loadForEdit(c)}
+                  >
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <div className="font-medium">{c.title}</div>
+                        <div className="text-sm text-slate-500 mt-1">
+                          {c.category} · {c.status}
+                        </div>
+                      </div>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onDelete(c.id);
+                        }}
+                        className="text-sm text-rose-600 hover:underline"
+                      >
+                        삭제
+                      </button>
+                    </div>
                   </div>
-                </div>
+                ))}
+              </div>
+            )}
+          </div>
 
+          {/* Right: Form */}
+          <div className="bg-white rounded-2xl shadow-sm border p-6">
+            <h2 className="font-semibold mb-4">{mode === 'edit' ? '수정' : '새 공모전 등록'}</h2>
+
+            {/* AI Extract */}
+            <div className="p-4 rounded-xl border bg-slate-50 mb-6">
+              <div className="text-sm font-medium mb-2">AI 원문 요약/추출</div>
+              <div className="flex gap-2">
+                <input
+                  value={aiUrl}
+                  onChange={(e) => setAiUrl(e.target.value)}
+                  placeholder="원문 URL"
+                  className="flex-1 px-3 py-2 rounded-lg border bg-white"
+                />
                 <button
-                  onClick={runAi}
+                  onClick={runAiExtract}
                   disabled={aiLoading}
-                  className={[
-                    'px-4 py-2 rounded-xl text-sm font-semibold text-white',
-                    aiLoading ? 'bg-slate-400 cursor-not-allowed' : 'bg-sky-700 hover:bg-sky-600',
-                  ].join(' ')}
+                  className="px-4 py-2 rounded-lg bg-sky-600 text-white hover:bg-sky-700 disabled:opacity-50"
                 >
-                  {aiLoading ? '정리 중...' : '내용 작성(AI)'}
+                  {aiLoading ? '분석중...' : 'AI 추출'}
                 </button>
               </div>
 
-              <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <input
-                    type="file"
-                    accept="image/*,application/pdf"
-                    onChange={(e) => onPickFile(e.target.files?.[0] ?? null)}
-                    className="w-full text-sm"
-                  />
-                  {aiError && <div className="text-sm text-red-600">{aiError}</div>}
+              {aiResult && (
+                <div className="mt-3 text-xs text-slate-600 whitespace-pre-wrap">
+                  <div className="font-medium mb-1">AI 결과</div>
+                  {JSON.stringify(aiResult, null, 2)}
                 </div>
-
-                <div className="rounded-xl border bg-slate-50 p-3 min-h-[140px]">
-                  <div className="text-xs text-slate-600 mb-2">미리보기(로컬)</div>
-                  {!uploadPreviewUrl && <div className="text-sm text-slate-400">업로드하면 여기서 미리 볼 수 있어요.</div>}
-                  {uploadPreviewUrl && uploadFile?.type.startsWith('image/') && (
-                    <img src={uploadPreviewUrl} className="max-h-[220px] rounded-lg border" />
-                  )}
-                  {uploadPreviewUrl && uploadFile?.type === 'application/pdf' && (
-                    <embed
-                      src={uploadPreviewUrl}
-                      type="application/pdf"
-                      className="w-full h-[220px] rounded-lg border bg-white"
-                    />
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {step === 2 && (
-          <div className="mt-5 grid grid-cols-1 md:grid-cols-2 gap-5">
-            <div className="rounded-2xl border bg-slate-50 p-4">
-              <div className="text-sm font-semibold text-slate-900 mb-3">미리보기</div>
-              {uploadPreviewUrl ? (
-                <>
-                  {uploadFile?.type.startsWith('image/') && (
-                    <img src={uploadPreviewUrl} className="w-full rounded-xl border bg-white" />
-                  )}
-                  {uploadFile?.type === 'application/pdf' && (
-                    <embed src={uploadPreviewUrl} type="application/pdf" className="w-full h-[520px] rounded-xl border bg-white" />
-                  )}
-                </>
-              ) : (
-                <div className="text-sm text-slate-500">업로드된 파일이 없어요. (STEP1에서 업로드)</div>
               )}
             </div>
 
+            {/* Form fields */}
             <div className="space-y-4">
-              <div className="rounded-2xl border bg-white p-4 space-y-3">
-                <div className="text-sm font-semibold text-slate-900">AI 추출 요약(수정 가능)</div>
-
-                <div className="space-y-1">
-                  <div className="text-xs text-slate-500">제목요약</div>
-                  <input
-                    value={aiDraft?.titleSummary ?? ''}
-                    onChange={(e) => setAiDraft((p) => (p ? { ...p, titleSummary: e.target.value } : p))}
-                    className="w-full px-3 py-2 rounded-xl border text-sm"
-                    placeholder="AI 제목요약"
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <div className="text-xs text-slate-500">주최/주관</div>
-                  <input
-                    value={aiDraft?.organizer ?? ''}
-                    onChange={(e) => setAiDraft((p) => (p ? { ...p, organizer: e.target.value } : p))}
-                    className="w-full px-3 py-2 rounded-xl border text-sm"
-                    placeholder="가능하면 채워짐"
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <div className="text-xs text-slate-500">대상(학과/학년/전공 등)</div>
-                  <input
-                    value={aiDraft?.target ?? ''}
-                    onChange={(e) => setAiDraft((p) => (p ? { ...p, target: e.target.value } : p))}
-                    className="w-full px-3 py-2 rounded-xl border text-sm"
-                    placeholder="가능하면 채워짐"
-                  />
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <div className="space-y-1">
-                    <div className="text-xs text-slate-500">신청 시작(선택)</div>
-                    <input
-                      value={aiDraft?.scheduleStart ?? ''}
-                      onChange={(e) => setAiDraft((p) => (p ? { ...p, scheduleStart: e.target.value } : p))}
-                      className="w-full px-3 py-2 rounded-xl border text-sm"
-                      placeholder="YYYY-MM-DD"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <div className="text-xs text-slate-500">신청 마감(선택)</div>
-                    <input
-                      value={aiDraft?.scheduleEnd ?? ''}
-                      onChange={(e) => setAiDraft((p) => (p ? { ...p, scheduleEnd: e.target.value } : p))}
-                      className="w-full px-3 py-2 rounded-xl border text-sm"
-                      placeholder="YYYY-MM-DD"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div className="rounded-2xl border bg-white p-4">
-                <div className="text-sm font-semibold text-slate-900">본문(수정 가능)</div>
-                <textarea
-                  value={aiDraft?.body ?? form.description}
-                  onChange={(e) => {
-                    if (aiDraft) setAiDraft({ ...aiDraft, body: e.target.value });
-                    else setForm({ ...form, description: e.target.value });
-                  }}
-                  className="mt-3 w-full min-h-[360px] px-4 py-3 rounded-xl border focus:outline-none focus:ring-2 focus:ring-sky-200 text-sm"
-                  placeholder="AI 본문이 여기에 채워집니다."
+              <div className="space-y-2">
+                <label className="text-sm font-medium">제목</label>
+                <input
+                  value={form.title}
+                  onChange={(e) => setForm({ ...form, title: e.target.value })}
+                  className="w-full px-4 py-3 rounded-xl border bg-white focus:outline-none focus:ring-2 focus:ring-sky-200"
+                  placeholder="예: 2026 HY-LINK 아이디어 공모전"
                 />
               </div>
 
-              <div className="flex items-center justify-end gap-3">
-                <button onClick={() => setStep(1)} className="px-4 py-2 rounded-xl border text-sm hover:bg-slate-50">
-                  다시 추출/수정
-                </button>
-                <button onClick={save} className="px-5 py-2 rounded-xl bg-gray-900 text-white text-sm font-semibold hover:bg-gray-800">
-                  {isEditing ? '수정 저장' : form.status === ContestStatus.PUBLISHED ? '게시' : '저장'}
-                </button>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">신청 URL(Deep Link)</label>
+                <input
+                  value={form.applyUrl}
+                  onChange={(e) => setForm({ ...form, applyUrl: e.target.value })}
+                  className="w-full px-4 py-3 rounded-xl border bg-white focus:outline-none focus:ring-2 focus:ring-sky-200"
+                  placeholder="https://..."
+                />
               </div>
-            </div>
-          </div>
-        )}
-      </div>
 
-      <div className="rounded-2xl border bg-white p-5">
-        <div className="text-sm font-semibold text-slate-900 mb-4">등록된 공모전</div>
-        <div className="space-y-3">
-          {sorted.length === 0 && <div className="text-sm text-slate-500">아직 등록된 공모전이 없습니다.</div>}
-          {sorted.map((c) => (
-            <div key={c.id} className="flex items-start justify-between gap-4 rounded-xl border p-4 hover:bg-slate-50">
-              <div className="min-w-0">
-                <div className="font-semibold text-slate-900 truncate">{c.title}</div>
-                <div className="text-xs text-slate-500 mt-1">
-                  {c.category} · {c.status} · 대상 {c.targets.length}개 · 업데이트 {c.updatedAt?.slice(0, 10)}
+              <div className="space-y-2">
+                <label className="text-sm font-medium">포스터 URL(선택)</label>
+                <input
+                  value={form.imageUrl}
+                  onChange={(e) => setForm({ ...form, imageUrl: e.target.value })}
+                  className="w-full px-4 py-3 rounded-xl border bg-white focus:outline-none focus:ring-2 focus:ring-sky-200"
+                  placeholder="https://..."
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium">카테고리</label>
+                <select
+                  value={form.category}
+                  onChange={(e) => setForm({ ...form, category: e.target.value as ContestCategory })}
+                  className="w-full px-4 py-3 rounded-xl border bg-white focus:outline-none focus:ring-2 focus:ring-sky-200"
+                >
+                  <option value={ContestCategory.CAMPUS}>{ContestCategory.CAMPUS}</option>
+                  <option value={ContestCategory.SUPPORTERS}>{ContestCategory.SUPPORTERS}</option>
+                  <option value={ContestCategory.ICPBL}>{ContestCategory.ICPBL}</option>
+                </select>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium">상태</label>
+                <select
+                  value={form.status}
+                  onChange={(e) => setForm({ ...form, status: e.target.value as ContestStatus })}
+                  className="w-full px-4 py-3 rounded-xl border bg-white focus:outline-none focus:ring-2 focus:ring-sky-200"
+                >
+                  <option value={ContestStatus.DRAFT}>DRAFT</option>
+                  <option value={ContestStatus.PUBLISHED}>PUBLISHED</option>
+                  <option value={ContestStatus.ARCHIVED}>ARCHIVED</option>
+                </select>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">시작일</label>
+                  <input
+                    value={form.startDate}
+                    onChange={(e) => setForm({ ...form, startDate: e.target.value })}
+                    className="w-full px-4 py-3 rounded-xl border bg-white focus:outline-none focus:ring-2 focus:ring-sky-200"
+                    placeholder="YYYY-MM-DD"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">마감일</label>
+                  <input
+                    value={form.endDate}
+                    onChange={(e) => setForm({ ...form, endDate: e.target.value })}
+                    className="w-full px-4 py-3 rounded-xl border bg-white focus:outline-none focus:ring-2 focus:ring-sky-200"
+                    placeholder="YYYY-MM-DD"
+                  />
                 </div>
               </div>
-              <div className="flex gap-2 shrink-0">
-                <button onClick={() => startEdit(c)} className="px-3 py-2 rounded-lg border text-sm hover:bg-white">
-                  수정
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium">설명</label>
+                <textarea
+                  value={form.description}
+                  onChange={(e) => setForm({ ...form, description: e.target.value })}
+                  className="w-full min-h-[140px] px-4 py-3 rounded-xl border bg-white focus:outline-none focus:ring-2 focus:ring-sky-200"
+                  placeholder="공모전 상세 설명"
+                />
+              </div>
+
+              {/* Upload poster */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium">포스터 업로드(선택)</label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => setUploadFile(e.target.files?.[0] ?? null)}
+                  className="w-full"
+                />
+              </div>
+
+              {/* Targets */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium">게시 대상</label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {TARGET_OPTIONS.map((t) => {
+                    const checked = form.targets.includes(t as any);
+                    return (
+                      <label
+                        key={t}
+                        className={`flex items-center gap-2 px-3 py-2 rounded-xl border bg-white cursor-pointer hover:bg-slate-50 ${
+                          checked ? 'ring-2 ring-sky-200 border-sky-200' : ''
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={(e) => {
+                            const next = e.target.checked
+                              ? [...form.targets, t as any]
+                              : form.targets.filter((x) => x !== (t as any));
+                            setForm({ ...form, targets: next });
+                          }}
+                        />
+                        <span className="text-sm">{t}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="pt-2 flex gap-2">
+                <button
+                  onClick={onSubmit}
+                  className="flex-1 px-4 py-3 rounded-xl bg-sky-600 text-white hover:bg-sky-700"
+                >
+                  {mode === 'edit' ? '수정 저장' : '등록'}
                 </button>
-                <button onClick={() => remove(c.id)} className="px-3 py-2 rounded-lg border text-sm text-red-600 hover:bg-white">
-                  삭제
+                <button
+                  onClick={resetForm}
+                  className="px-4 py-3 rounded-xl bg-white border hover:bg-slate-100"
+                >
+                  초기화
                 </button>
               </div>
             </div>
-          ))}
+
+            {selected && (
+              <div className="mt-6 p-4 rounded-xl border bg-slate-50">
+                <div className="text-sm font-medium mb-2">선택된 공고</div>
+                <div className="text-sm text-slate-600 whitespace-pre-wrap">{selected.title}</div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>
   );
 };
+
+export default ContestManager;

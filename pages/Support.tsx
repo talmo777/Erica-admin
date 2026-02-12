@@ -142,6 +142,8 @@ const EmergencySection = () => {
 
 // --- Feedback Section ---
 const FeedbackSection = () => {
+  const [loading, setLoading] = useState(true);
+
   return (
     <div className="space-y-4">
       <div className="bg-white p-4 rounded-lg border flex items-center justify-between">
@@ -159,16 +161,25 @@ const FeedbackSection = () => {
         </a>
       </div>
 
-      <div className="bg-white rounded-lg border overflow-hidden">
+      <div className="bg-white rounded-lg border overflow-hidden relative">
+        {loading && (
+          <div className="absolute inset-0 flex items-center justify-center bg-white z-10">
+            <div className="flex items-center gap-3 text-slate-600">
+              <div className="w-5 h-5 rounded-full border-2 border-slate-300 border-t-slate-600 animate-spin" />
+              <div className="text-sm">폼 로딩중…</div>
+            </div>
+          </div>
+        )}
+
         <iframe
           title="관리자 피드백 폼"
           src={AIRTABLE_FEEDBACK_EMBED_URL}
           className="w-full"
           style={{ height: 'calc(100vh - 260px)' }}
           frameBorder={0}
+          onLoad={() => setLoading(false)}
         />
       </div>
     </div>
   );
 };
-

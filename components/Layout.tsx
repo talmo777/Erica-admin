@@ -138,4 +138,32 @@ export const AdminLayout: React.FC = () => {
           {/* Powered by */}
           <a
             href={MOYEON_LINK_URL}
-            target="_
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-2 text-xs text-gray-400 hover:text-gray-600 overflow-hidden"
+          >
+            <img src={MOYEON_LOGO_URL} alt="모두의연구소" className="w-4 h-4 shrink-0" />
+            <span className={['transition-all', isDesktopExpanded ? 'md:opacity-100' : 'md:opacity-0 md:w-0 md:overflow-hidden'].join(' ')}>
+              Powered by 모두의연구소
+            </span>
+          </a>
+        </div>
+      </aside>
+
+      {/* Main Content */}
+      <main className="flex-1 p-4 md:p-8 overflow-y-auto min-h-screen">
+        <div className="max-w-7xl mx-auto">
+          <Outlet />
+        </div>
+      </main>
+
+      {/* Mobile Overlay */}
+      {isMobileMenuOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 z-30 md:hidden"
+          onClick={() => setIsMobileMenuOpen(false)}
+        />
+      )}
+    </div>
+  );
+};

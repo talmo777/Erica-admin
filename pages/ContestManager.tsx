@@ -15,7 +15,14 @@ type View = 'list' | 'create';
 type EditModalState = { open: boolean; id: string | null };
 type ConfirmState =
   | { open: false }
-  | { open: true; title: string; message: string; confirmText?: string; danger?: boolean; onConfirm: () => Promise<void> };
+  | {
+      open: true;
+      title: string;
+      message: string;
+      confirmText?: string;
+      danger?: boolean;
+      onConfirm: () => Promise<void>;
+    };
 
 const emptyContest: Contest = {
   id: '',
@@ -41,6 +48,17 @@ type AiDraft = {
   scheduleEnd: string;
   body: string;
 };
+
+function cx(...classes: Array<string | false | undefined | null>) {
+  return classes.filter(Boolean).join(' ');
+}
+
+const btnBase =
+  'inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition';
+const btnSecondary = btnBase + ' bg-white border border-slate-200 hover:bg-slate-50';
+const btnPrimary = btnBase + ' bg-sky-600 text-white hover:bg-sky-700';
+const btnDanger =
+  btnBase + ' bg-rose-600 text-white hover:bg-rose-700 disabled:opacity-40 disabled:hover:bg-rose-600';
 
 function buildDescriptionOptionA(d: AiDraft): string {
   const lines: string[] = [];
@@ -75,6 +93,16 @@ function dateOnlyOrNull(v?: string): string | null {
   return d.toISOString().slice(0, 10);
 }
 
+function Chip({ children, tone = 'slate' }: { children: React.ReactNode; tone?: 'slate' | 'sky' | 'rose' }) {
+  const cls =
+    tone === 'sky'
+      ? 'bg-sky-50 text-sky-800 ring-1 ring-sky-200'
+      : tone === 'rose'
+      ? 'bg-rose-50 text-rose-800 ring-1 ring-rose-200'
+      : 'bg-slate-100 text-slate-700 ring-1 ring-slate-200';
+  return <span className={cx('px-2 py-0.5 rounded-full text-xs font-medium', cls)}>{children}</span>;
+}
+
 function Modal({
   open,
   title,
@@ -89,17 +117,16 @@ function Modal({
   size?: 'md' | 'lg' | 'xl';
 }) {
   if (!open) return null;
-  const width =
-    size === 'md' ? 'max-w-xl' : size === 'xl' ? 'max-w-5xl' : 'max-w-3xl';
+  const width = size === 'md' ? 'max-w-xl' : size === 'xl' ? 'max-w-5xl' : 'max-w-3xl';
 
   return (
     <div className="fixed inset-0 z-50">
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
       <div className="absolute inset-0 flex items-center justify-center p-4">
-        <div className={`w-full ${width} bg-white rounded-2xl shadow-xl border overflow-hidden`}>
+        <div className={cx('w-full', width, 'bg-white rounded-2xl shadow-xl border overflow-hidden')}>
           <div className="flex items-center justify-between px-6 py-4 border-b">
-            <div className="font-semibold">{title}</div>
-            <button onClick={onClose} className="px-3 py-1.5 rounded-lg hover:bg-slate-100">
+            <div className="font-semibold text-slate-900">{title}</div>
+            <button onClick={onClose} className={cx(btnSecondary, 'px-3 py-1.5 font-semibold')}>
               닫기
             </button>
           </div>
@@ -118,11 +145,11 @@ function ConfirmModal({ state, onClose }: { state: ConfirmState; onClose: () => 
       <div className="absolute inset-0 flex items-center justify-center p-4">
         <div className="w-full max-w-md bg-white rounded-2xl shadow-xl border overflow-hidden">
           <div className="px-6 py-4 border-b">
-            <div className="font-semibold">{state.title}</div>
+            <div className="font-semibold text-slate-900">{state.title}</div>
           </div>
           <div className="px-6 py-5 text-sm text-slate-700 whitespace-pre-wrap">{state.message}</div>
           <div className="px-6 py-4 border-t flex gap-2 justify-end">
-            <button onClick={onClose} className="px-4 py-2 rounded-xl border bg-white hover:bg-slate-50">
+            <button onClick={onClose} className={btnSecondary}>
               취소
             </button>
             <button
@@ -130,16 +157,28 @@ function ConfirmModal({ state, onClose }: { state: ConfirmState; onClose: () => 
                 await state.onConfirm();
                 onClose();
               }}
-              className={[
-                'px-4 py-2 rounded-xl text-white',
-                state.danger ? 'bg-rose-600 hover:bg-rose-700' : 'bg-sky-600 hover:bg-sky-700',
-              ].join(' ')}
+              className={state.danger ? btnDanger : btnPrimary}
             >
               {state.confirmText ?? '확인'}
             </button>
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+function SectionCard({ title, subtitle, right, children }: any) {
+  return (
+    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+      <div className="px-6 py-5 border-b border-slate-200 flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <div className="text-lg font-bold text-slate-900">{title}</div>
+          {subtitle && <div className="text-sm text-slate-500 mt-1">{subtitle}</div>}
+        </div>
+        {right}
+      </div>
+      <div className="p-6">{children}</div>
     </div>
   );
 }
@@ -246,65 +285,70 @@ function ContestForm({
   }
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       {/* AI Extract */}
-      <div className="p-4 rounded-xl border bg-slate-50">
-        <div className="text-sm font-medium mb-2">AI 원문 요약/추출</div>
-        <div className="flex gap-2">
+      <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <div className="text-sm font-semibold text-slate-900">AI 원문 요약/추출</div>
+            <div className="text-xs text-slate-500 mt-1">원문 URL을 넣으면 제목/일정/신청링크 등을 자동 채웁니다.</div>
+          </div>
+          <Chip tone="sky">Option A</Chip>
+        </div>
+
+        <div className="mt-3 flex gap-2">
           <input
             value={aiUrl}
             onChange={(e) => setAiUrl(e.target.value)}
             placeholder="원문 URL"
-            className="flex-1 px-3 py-2 rounded-lg border bg-white"
+            className="flex-1 px-3 py-2 rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-sky-200"
           />
-          <button
-            onClick={runAiExtract}
-            disabled={aiLoading}
-            className="px-4 py-2 rounded-lg bg-sky-600 text-white hover:bg-sky-700 disabled:opacity-50"
-          >
-            {aiLoading ? '분석중...' : 'AI 추출'}
+          <button onClick={runAiExtract} disabled={aiLoading} className={cx(btnPrimary, 'disabled:opacity-50')}>
+            {aiLoading ? '분석중…' : 'AI 추출'}
           </button>
         </div>
 
         {aiResult && (
-          <div className="mt-3 text-xs text-slate-600 whitespace-pre-wrap">
-            <div className="font-medium mb-1">AI 결과</div>
-            {JSON.stringify(aiResult, null, 2)}
-          </div>
+          <details className="mt-3">
+            <summary className="text-xs text-slate-600 cursor-pointer">AI 결과 보기</summary>
+            <pre className="mt-2 text-xs bg-white border border-slate-200 rounded-xl p-3 overflow-x-auto">
+              {JSON.stringify(aiResult, null, 2)}
+            </pre>
+          </details>
         )}
       </div>
 
       {/* Fields */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         <div className="space-y-2">
-          <label className="text-sm font-medium">제목</label>
+          <label className="text-sm font-semibold text-slate-800">제목</label>
           <input
             value={form.title}
             onChange={(e) => setForm({ ...form, title: e.target.value })}
-            className="w-full px-4 py-3 rounded-xl border bg-white focus:outline-none focus:ring-2 focus:ring-sky-200"
+            className="w-full px-4 py-3 rounded-2xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-sky-200"
           />
         </div>
 
         <div className="space-y-2">
-          <label className="text-sm font-medium">신청 URL(Deep Link)</label>
+          <label className="text-sm font-semibold text-slate-800">신청 URL(Deep Link)</label>
           <input
             value={form.applyUrl}
             onChange={(e) => setForm({ ...form, applyUrl: e.target.value })}
-            className="w-full px-4 py-3 rounded-xl border bg-white focus:outline-none focus:ring-2 focus:ring-sky-200"
+            className="w-full px-4 py-3 rounded-2xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-sky-200"
           />
         </div>
 
         <div className="space-y-2">
-          <label className="text-sm font-medium">포스터 URL(선택)</label>
+          <label className="text-sm font-semibold text-slate-800">포스터 URL(선택)</label>
           <input
             value={form.imageUrl}
             onChange={(e) => setForm({ ...form, imageUrl: e.target.value })}
-            className="w-full px-4 py-3 rounded-xl border bg-white focus:outline-none focus:ring-2 focus:ring-sky-200"
+            className="w-full px-4 py-3 rounded-2xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-sky-200"
           />
         </div>
 
         <div className="space-y-2">
-          <label className="text-sm font-medium">포스터 업로드(선택)</label>
+          <label className="text-sm font-semibold text-slate-800">포스터 업로드(선택)</label>
           <input
             type="file"
             accept="image/*"
@@ -314,11 +358,11 @@ function ContestForm({
         </div>
 
         <div className="space-y-2">
-          <label className="text-sm font-medium">카테고리</label>
+          <label className="text-sm font-semibold text-slate-800">카테고리</label>
           <select
             value={form.category}
             onChange={(e) => setForm({ ...form, category: e.target.value as ContestCategory })}
-            className="w-full px-4 py-3 rounded-xl border bg-white focus:outline-none focus:ring-2 focus:ring-sky-200"
+            className="w-full px-4 py-3 rounded-2xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-sky-200"
           >
             <option value={ContestCategory.CAMPUS}>{ContestCategory.CAMPUS}</option>
             <option value={ContestCategory.SUPPORTERS}>{ContestCategory.SUPPORTERS}</option>
@@ -327,11 +371,11 @@ function ContestForm({
         </div>
 
         <div className="space-y-2">
-          <label className="text-sm font-medium">상태</label>
+          <label className="text-sm font-semibold text-slate-800">상태</label>
           <select
             value={form.status}
             onChange={(e) => setForm({ ...form, status: e.target.value as ContestStatus })}
-            className="w-full px-4 py-3 rounded-xl border bg-white focus:outline-none focus:ring-2 focus:ring-sky-200"
+            className="w-full px-4 py-3 rounded-2xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-sky-200"
           >
             <option value={ContestStatus.DRAFT}>DRAFT</option>
             <option value={ContestStatus.PUBLISHED}>PUBLISHED</option>
@@ -340,47 +384,53 @@ function ContestForm({
         </div>
 
         <div className="space-y-2">
-          <label className="text-sm font-medium">시작일</label>
+          <label className="text-sm font-semibold text-slate-800">시작일</label>
           <input
             value={form.startDate}
             onChange={(e) => setForm({ ...form, startDate: e.target.value })}
-            className="w-full px-4 py-3 rounded-xl border bg-white focus:outline-none focus:ring-2 focus:ring-sky-200"
+            className="w-full px-4 py-3 rounded-2xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-sky-200"
             placeholder="YYYY-MM-DD"
           />
         </div>
 
         <div className="space-y-2">
-          <label className="text-sm font-medium">마감일</label>
+          <label className="text-sm font-semibold text-slate-800">마감일</label>
           <input
             value={form.endDate}
             onChange={(e) => setForm({ ...form, endDate: e.target.value })}
-            className="w-full px-4 py-3 rounded-xl border bg-white focus:outline-none focus:ring-2 focus:ring-sky-200"
+            className="w-full px-4 py-3 rounded-2xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-sky-200"
             placeholder="YYYY-MM-DD"
           />
         </div>
       </div>
 
       <div className="space-y-2">
-        <label className="text-sm font-medium">설명</label>
+        <label className="text-sm font-semibold text-slate-800">설명</label>
         <textarea
           value={form.description}
           onChange={(e) => setForm({ ...form, description: e.target.value })}
-          className="w-full min-h-[160px] px-4 py-3 rounded-xl border bg-white focus:outline-none focus:ring-2 focus:ring-sky-200"
+          className="w-full min-h-[180px] px-4 py-3 rounded-2xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-sky-200"
         />
       </div>
 
       {/* Targets */}
       <div className="space-y-2">
-        <label className="text-sm font-medium">게시 대상</label>
+        <div className="flex items-center justify-between">
+          <label className="text-sm font-semibold text-slate-800">게시 대상</label>
+          <div className="text-xs text-slate-500">최소 1개 선택</div>
+        </div>
+
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
           {TARGET_OPTIONS.map((t) => {
             const checked = form.targets.includes(t as any);
             return (
               <label
                 key={t}
-                className={`flex items-center gap-2 px-3 py-2 rounded-xl border bg-white cursor-pointer hover:bg-slate-50 ${
-                  checked ? 'ring-2 ring-sky-200 border-sky-200' : ''
-                }`}
+                className={cx(
+                  'flex items-center gap-2 px-3 py-2 rounded-2xl border',
+                  'bg-white cursor-pointer hover:bg-slate-50 transition',
+                  checked ? 'border-sky-300 ring-2 ring-sky-100' : 'border-slate-200'
+                )}
               >
                 <input
                   type="checkbox"
@@ -392,7 +442,7 @@ function ContestForm({
                     setForm({ ...form, targets: next });
                   }}
                 />
-                <span className="text-sm">{t}</span>
+                <span className="text-sm text-slate-800">{t}</span>
               </label>
             );
           })}
@@ -400,10 +450,10 @@ function ContestForm({
       </div>
 
       <div className="pt-2 flex gap-2 justify-end">
-        <button onClick={onCancel} className="px-4 py-3 rounded-xl bg-white border hover:bg-slate-50">
+        <button onClick={onCancel} className={btnSecondary}>
           취소
         </button>
-        <button onClick={onSubmit} className="px-5 py-3 rounded-xl bg-sky-600 text-white hover:bg-sky-700">
+        <button onClick={onSubmit} className={btnPrimary}>
           {mode === 'edit' ? '수정 저장' : '등록'}
         </button>
       </div>
@@ -413,20 +463,12 @@ function ContestForm({
 
 export const ContestManager: React.FC = () => {
   const [view, setView] = useState<View>('list');
-
   const [list, setList] = useState<Contest[]>([]);
   const [loading, setLoading] = useState(false);
 
-  // selection for bulk delete
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-
-  // edit modal
   const [editModal, setEditModal] = useState<EditModalState>({ open: false, id: null });
-
-  // create page form state
   const [createSeed, setCreateSeed] = useState<Contest>(emptyContest);
-
-  // confirm modal state
   const [confirm, setConfirm] = useState<ConfirmState>({ open: false });
 
   const selectedContest = useMemo(
@@ -507,10 +549,7 @@ export const ContestManager: React.FC = () => {
       confirmText: '선택 삭제',
       danger: true,
       onConfirm: async () => {
-        // 단순/안전: 순차 삭제
-        for (const id of ids) {
-          await deleteContest(id);
-        }
+        for (const id of ids) await deleteContest(id);
         await refresh();
         setSelectedIds(new Set());
       },
@@ -521,34 +560,25 @@ export const ContestManager: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <div className="max-w-7xl mx-auto px-6 py-10">
+      <div className="max-w-7xl mx-auto px-6 py-10 space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex items-start justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold">공모전 게시/배포</h1>
-            <p className="text-slate-600 mt-1">목록 조회 · 신규 등록 · 수정 · 삭제</p>
+            <h1 className="text-2xl font-extrabold text-slate-900">공모전 게시/배포</h1>
+            <p className="text-slate-500 mt-1">목록 조회 · 신규 등록 · 수정 · 삭제</p>
           </div>
 
           {view === 'list' ? (
             <div className="flex gap-2">
-              <button
-                onClick={refresh}
-                className="px-4 py-2 rounded-xl bg-white border hover:bg-slate-100"
-              >
+              <button onClick={refresh} className={btnSecondary}>
                 새로고침
               </button>
-              <button
-                onClick={openCreate}
-                className="px-4 py-2 rounded-xl bg-sky-600 text-white hover:bg-sky-700"
-              >
+              <button onClick={openCreate} className={btnPrimary}>
                 새 공모전 작성
               </button>
             </div>
           ) : (
-            <button
-              onClick={() => setView('list')}
-              className="px-4 py-2 rounded-xl bg-white border hover:bg-slate-100"
-            >
+            <button onClick={() => setView('list')} className={btnSecondary}>
               목록으로
             </button>
           )}
@@ -556,70 +586,61 @@ export const ContestManager: React.FC = () => {
 
         {/* LIST VIEW */}
         {view === 'list' && (
-          <div className="bg-white rounded-2xl shadow-sm border p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-3">
+          <SectionCard
+            title="게시 목록"
+            subtitle="목록을 클릭하면 팝업에서 바로 수정할 수 있습니다."
+            right={
+              <div className="flex items-center gap-2">
                 <label className="inline-flex items-center gap-2 text-sm text-slate-700">
-                  <input
-                    type="checkbox"
-                    checked={allChecked}
-                    onChange={(e) => toggleSelectAll(e.target.checked)}
-                  />
+                  <input type="checkbox" checked={allChecked} onChange={(e) => toggleSelectAll(e.target.checked)} />
                   전체 선택
                 </label>
-
                 <div className="text-sm text-slate-500">
-                  선택: <span className="font-semibold">{selectedIds.size}</span> / {list.length}
+                  선택 <span className="font-bold text-slate-900">{selectedIds.size}</span> / {list.length}
                 </div>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <button
-                  disabled={selectedIds.size === 0}
-                  onClick={askDeleteSelected}
-                  className="px-4 py-2 rounded-xl bg-rose-600 text-white hover:bg-rose-700 disabled:opacity-40"
-                >
+                <button disabled={selectedIds.size === 0} onClick={askDeleteSelected} className={btnDanger}>
                   선택 삭제
                 </button>
               </div>
-            </div>
-
+            }
+          >
             {loading ? (
-              <div className="text-slate-500">불러오는 중...</div>
+              <div className="text-slate-500">불러오는 중…</div>
             ) : list.length === 0 ? (
               <div className="text-slate-500">데이터가 없습니다.</div>
             ) : (
               <div className="space-y-3">
                 {list.map((c) => {
                   const checked = selectedIds.has(c.id);
+                  const statusTone = c.status === ContestStatus.PUBLISHED ? 'sky' : c.status === ContestStatus.ARCHIVED ? 'rose' : 'slate';
+
                   return (
                     <div
                       key={c.id}
-                      className="p-4 rounded-xl border hover:bg-slate-50"
+                      className={cx(
+                        'rounded-2xl border border-slate-200 bg-white',
+                        'hover:shadow-sm hover:border-slate-300 transition',
+                        'px-4 py-4'
+                      )}
                     >
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="flex items-start gap-3">
-                          <input
-                            type="checkbox"
-                            checked={checked}
-                            onChange={(e) => toggleSelect(c.id, e.target.checked)}
-                            className="mt-1"
-                          />
-                          <div
-                            className="cursor-pointer"
-                            onClick={() => openEdit(c.id)}
-                          >
-                            <div className="font-medium">{c.title}</div>
-                            <div className="text-sm text-slate-500 mt-1">
-                              {c.category} · {c.status}
-                            </div>
-                          </div>
-                        </div>
+                      <div className="grid grid-cols-[24px_1fr_auto] gap-3 items-start">
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={(e) => toggleSelect(c.id, e.target.checked)}
+                          className="mt-1"
+                        />
 
-                        <button
-                          onClick={() => askDeleteOne(c.id)}
-                          className="text-sm text-rose-600 hover:underline"
-                        >
+                        <button className="text-left min-w-0" onClick={() => openEdit(c.id)}>
+                          <div className="font-semibold text-slate-900 truncate">{c.title}</div>
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            <Chip>{c.category}</Chip>
+                            <Chip tone={statusTone as any}>{c.status}</Chip>
+                            {c.targets?.length ? <Chip tone="slate">대상 {c.targets.length}개</Chip> : null}
+                          </div>
+                        </button>
+
+                        <button onClick={() => askDeleteOne(c.id)} className="text-xs font-semibold text-rose-600 hover:underline">
                           삭제
                         </button>
                       </div>
@@ -628,16 +649,16 @@ export const ContestManager: React.FC = () => {
                 })}
               </div>
             )}
-          </div>
+          </SectionCard>
         )}
 
         {/* CREATE VIEW */}
         {view === 'create' && (
-          <div className="bg-white rounded-2xl shadow-sm border p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="font-semibold">새 공모전 등록</h2>
-            </div>
-
+          <SectionCard
+            title="새 공모전 등록"
+            subtitle="필수값: 제목, 신청 URL, 게시 대상"
+            right={null}
+          >
             <ContestForm
               mode="create"
               initial={createSeed}
@@ -647,7 +668,7 @@ export const ContestManager: React.FC = () => {
                 setView('list');
               }}
             />
-          </div>
+          </SectionCard>
         )}
 
         {/* EDIT MODAL */}
@@ -670,7 +691,7 @@ export const ContestManager: React.FC = () => {
           )}
         </Modal>
 
-        {/* CONFIRM MODAL (centered) */}
+        {/* CONFIRM MODAL */}
         <ConfirmModal state={confirm} onClose={() => setConfirm({ open: false })} />
       </div>
     </div>

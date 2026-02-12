@@ -1,10 +1,16 @@
 // --- Domain Enums & Types ---
 
+/**
+ * 관리자 웹에서 사용하는 카테고리(탐색 범위/표시용)
+ * 탐색 범위는 3개로 고정:
+ * - 교내 공모전
+ * - 서포터즈
+ * - ICPBL
+ */
 export enum ContestCategory {
-  SUPPORTERS = '서포터즈',
-  ICPBL = 'IC-PBL',
   CAMPUS = '교내 공모전',
-  EXTERNAL = '대외활동'
+  SUPPORTERS = '서포터즈',
+  ICPBL = 'ICPBL',
 }
 
 export enum ContestStatus {
@@ -13,18 +19,29 @@ export enum ContestStatus {
   ARCHIVED = 'ARCHIVED'
 }
 
-export type TargetCollege = 
-  | '공학대학'
-  | '소프트웨어융합대학'
-  | '첨단융합대학'
-  | '약학대학'
-  | '글로벌문화통상대학'
-  | '커뮤니케이션&컬쳐대학'
-  | '경상대학'
+/**
+ * 관리자 웹 "게시 대상" 옵션 (향후 권한/연동 시 배포 타겟으로 사용)
+ * - 지금 단계에서는 실제 자동 업로드는 하지 않고, 선택값을 레코드에 저장해 둠
+ */
+export type TargetSite =
+  | '한양대학교 포털'
+  | '한양대학교 ERICA 학술정보관'
+  | 'ERICA IC-PBL 교수학습센터'
+  | '뉴스H'
+  | '한양대학교 ERICA 창업교육센터'
+  | '한양대학교 ERICA 비교과 통합관리시스템 (게시판)'
+  | '한양대학교 에리카 국제처'
+  | '한양대학교 에리카캠퍼스 (에리카 산업협력단지)'
   | '디자인대학'
-  | '예체능대학'
-  | 'LIONS칼리지'
-  | '교수학습센터';
+  | '한양대학교 ERICA 경상대학'
+  | '한양대학교 에리카 LIONS 칼리지'
+  | '한양대학교 소프트웨어융합대학'
+  | 'ERICA 공학대학'
+  | '한양대학교 커뮤니케이션&컬쳐대학'
+  | '글로벌문화통상대학'
+  | '한양대학교 에리카 첨단융합대학'
+  | '한양대 약학대학'
+  | '한양대 예체능대학';
 
 export interface Contest {
   id: string;
@@ -34,7 +51,7 @@ export interface Contest {
   applyUrl: string;
   category: ContestCategory;
   status: ContestStatus;
-  targets: TargetCollege[];
+  targets: TargetSite[];
   startDate: string; // ISO Date
   endDate: string;   // ISO Date
   createdAt: string;
@@ -94,18 +111,25 @@ export interface InternalFeedback {
   isResolved: boolean;
 }
 
-// --- UI Constants ---
+// --- UI constants ---
 
-export const TARGET_OPTIONS: TargetCollege[] = [
-  '공학대학',
-  '소프트웨어융합대학',
-  '첨단융합대학',
-  '약학대학',
-  '글로벌문화통상대학',
-  '커뮤니케이션&컬쳐대학',
-  '경상대학',
+export const TARGET_OPTIONS: TargetSite[] = [
+  '한양대학교 포털',
+  '한양대학교 ERICA 학술정보관',
+  'ERICA IC-PBL 교수학습센터',
+  '뉴스H',
+  '한양대학교 ERICA 창업교육센터',
+  '한양대학교 ERICA 비교과 통합관리시스템 (게시판)',
+  '한양대학교 에리카 국제처',
+  '한양대학교 에리카캠퍼스 (에리카 산업협력단지)',
   '디자인대학',
-  '예체능대학',
-  'LIONS칼리지',
-  '교수학습센터',
+  '한양대학교 ERICA 경상대학',
+  '한양대학교 에리카 LIONS 칼리지',
+  '한양대학교 소프트웨어융합대학',
+  'ERICA 공학대학',
+  '한양대학교 커뮤니케이션&컬쳐대학',
+  '글로벌문화통상대학',
+  '한양대학교 에리카 첨단융합대학',
+  '한양대 약학대학',
+  '한양대 예체능대학',
 ];

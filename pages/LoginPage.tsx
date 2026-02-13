@@ -1,0 +1,49 @@
+import React from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+import { HYU_LOGO_URL } from '../constants';
+
+export const LoginPage: React.FC = () => {
+  const { signInWithGoogle, approval, loading, isAuthenticated } = useAuth();
+  const navigate = useNavigate();
+
+  React.useEffect(() => {
+    if (!loading && isAuthenticated) {
+      if (approval === 'APPROVED') navigate('/admin', { replace: true });
+      else navigate('/access-denied', { replace: true });
+    }
+  }, [loading, isAuthenticated, approval]);
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-slate-50 px-4">
+      <div className="w-full max-w-md bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
+        <div className="flex items-center gap-3 mb-5">
+          <img src={HYU_LOGO_URL} className="w-10 h-10 rounded-xl" alt="HYU" />
+          <div>
+            <div className="text-lg font-extrabold text-slate-900">HY-LINK 관리자</div>
+            <div className="text-xs text-slate-500">승인된 계정만 접근 가능합니다.</div>
+          </div>
+        </div>
+
+        <button
+          onClick={() => signInWithGoogle()}
+          className="w-full rounded-xl bg-slate-900 text-white py-3 font-semibold hover:bg-slate-800 transition"
+          disabled={loading}
+        >
+          Google로 로그인
+        </button>
+
+        <button
+          onClick={() => navigate('/request-access')}
+          className="w-full mt-3 rounded-xl border border-slate-200 bg-white text-slate-900 py-3 font-semibold hover:bg-slate-50 transition"
+        >
+          승인요청
+        </button>
+
+        <div className="mt-4 text-xs text-slate-500 leading-relaxed">
+          * 승인요청 제출 후 운영자가 Airtable에서 승인 처리합니다. 승인 완료 시 안내 메일을 발송합니다(초기 MVP는 수동 발송).
+        </div>
+      </div>
+    </div>
+  );
+};

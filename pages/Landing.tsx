@@ -114,21 +114,15 @@ export const Landing: React.FC = () => {
           </p>
 
           {/* ✅ CTA: 시작하기(로그인) + 승인요청 */}
-          <div className="flex gap-3 justify-center flex-col sm:flex-row">
+          <div className="flex justify-center">
             <button
               onClick={() => navigate('/login')}
-              className="px-8 py-4 bg-gray-900 text-white rounded-lg text-lg font-semibold hover:bg-gray-800 transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-1"
+              className="px-10 py-4 bg-gray-900 text-white rounded-lg text-lg font-semibold hover:bg-gray-800 transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-1"
             >
               시작하기
             </button>
-
-            <button
-              onClick={() => navigate('/request-access')}
-              className="px-8 py-4 bg-white border border-slate-200 text-slate-900 rounded-lg text-lg font-semibold hover:bg-slate-50 transition-all"
-            >
-              승인요청
-            </button>
           </div>
+
         </div>
 
         <style>{`

@@ -7,6 +7,7 @@ import { ContestManager } from './pages/ContestManager';
 import CalendarView from './pages/Calendar';
 import { SupportPage } from './pages/Support';
 
+import { Landing } from './pages/Landing';
 import { LoginPage } from './pages/LoginPage';
 import { RequestAccessPage } from './pages/RequestAccessPage';
 import { AccessDeniedPage } from './pages/AccessDeniedPage';
@@ -33,13 +34,16 @@ const App: React.FC = () => {
     <AuthProvider>
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<Navigate to="/login" replace />} />
+          {/* ✅ Public: 기존 첫 화면 유지 */}
+          <Route path="/" element={<Landing />} />
 
+          {/* ✅ Public: 로그인/승인요청 */}
           <Route path="/login" element={<LoginPage />} />
           <Route path="/request-access" element={<RequestAccessPage />} />
           <Route path="/access-denied" element={<AccessDeniedPage />} />
           <Route path="/auth/callback" element={<AuthCallbackPage />} />
 
+          {/* ✅ Protected: 승인된 관리자만 */}
           <Route
             path="/admin"
             element={
@@ -55,7 +59,8 @@ const App: React.FC = () => {
             <Route path="emergency" element={<SupportPage />} />
           </Route>
 
-          <Route path="*" element={<Navigate to="/login" replace />} />
+          {/* ✅ fallback은 로그인 강제 X → 첫 화면으로 */}
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
     </AuthProvider>

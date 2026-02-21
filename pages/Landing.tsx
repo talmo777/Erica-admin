@@ -17,6 +17,18 @@ export const Landing: React.FC = () => {
     }
   }, [loading, isAuthenticated, approval, navigate]);
 
+  // 인증 상태를 확인하는 동안 스피너만 표시 (이미 로그인된 경우 히어로 깜빡임 방지)
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-6 h-6 rounded-full border-2 border-slate-200 border-t-slate-800 animate-spin" />
+          <span className="text-sm text-slate-400">잠시만 기다려주세요…</span>
+        </div>
+      </div>
+    );
+  }
+
   useEffect(() => {
     const el = heroRef.current;
     if (!el) return;

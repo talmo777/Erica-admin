@@ -14,6 +14,7 @@ import {
   ChevronsRight,
 } from 'lucide-react';
 import { HYU_LOGO_URL, MOYEON_LOGO_URL, MOYEON_LINK_URL, USER_WEB_URL } from '../constants';
+import { ProfileSetupModal } from './ProfileSetupModal';
 
 type NavItem = {
   path: string;
@@ -27,11 +28,14 @@ function cx(...classes: Array<string | false | undefined | null>) {
 }
 
 export const AdminLayout: React.FC = () => {
-  const { signOut, user } = useAuth();
+  const { signOut, user, profile } = useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
   const [isPinnedOpen, setIsPinnedOpen] = React.useState(false);
   const [isHovering, setIsHovering] = React.useState(false);
   const isDesktopExpanded = isPinnedOpen || isHovering;
+
+  // 프로필 미완성 시 설정 모달 표시 (관리자 영역에서만)
+  const profileIncomplete = !profile?.name || !profile?.role || !profile?.contact;
 
   const navItems: NavItem[] = [
     { path: '/admin', label: '대시보드', icon: LayoutDashboard, end: true },
@@ -236,6 +240,9 @@ export const AdminLayout: React.FC = () => {
           onClick={() => setIsMobileMenuOpen(false)}
         />
       )}
+
+      {/* 프로필 미설정 시 설정 모달 (관리자 영역에서만 표시) */}
+      <ProfileSetupModal open={profileIncomplete} />
     </div>
   );
 };

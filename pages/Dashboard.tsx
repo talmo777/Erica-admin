@@ -4,13 +4,12 @@ import {
   AreaChart, Area,
   LineChart, Line,
   PieChart, Pie, Cell,
-  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ReferenceLine,
+  XAxis, YAxis, CartesianGrid, Tooltip, Legend,
   ResponsiveContainer,
 } from 'recharts';
 import {
-  TrendingUp, Users, MousePointer, Eye,
   CheckCircle2, Clock, Archive, BarChart2,
-  AlertCircle, CalendarClock,
+  AlertCircle, RefreshCw,
 } from 'lucide-react';
 import { getContests, ApiContest } from '../services/api';
 import { supabase } from '../services/supabaseClient';
@@ -192,17 +191,20 @@ export const Dashboard: React.FC = () => {
   const [analyticsReady, setAnalyticsReady] = useState<'loading' | 'ok' | 'unavailable'>('loading');
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [timeRange, setTimeRange] = useState<7 | 30>(30);
+  const [fetchKey, setFetchKey] = useState(0); // incremented to retry
 
   useEffect(() => {
+    let cancelled = false;
     (async () => {
       setLoading(true);
+      setFetchError(null);
       try {
         const rows = await getContests();
-        setContests(rows);
+        if (!cancelled) setContests(rows);
       } catch (e: any) {
-        setFetchError(e?.message ?? '데이터를 불러오지 못했습니다.');
+        if (!cancelled) setFetchError(e?.message ?? '데이터를 불러오지 못했습니다.');
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
 
       // Try Supabase analytics table
@@ -217,21 +219,24 @@ export const Dashboard: React.FC = () => {
           .order('date', { ascending: true });
 
         if (!error && data?.length) {
-          setAnalytics(data.map((r: any) => ({
-            date: r.date,
-            visitors: r.visitors ?? 0,
-            clicks: r.clicks ?? 0,
-            applyClicks: r.apply_clicks ?? 0,
-          })));
-          setAnalyticsReady('ok');
+          if (!cancelled) {
+            setAnalytics(data.map((r: any) => ({
+              date: r.date,
+              visitors: r.visitors ?? 0,
+              clicks: r.clicks ?? 0,
+              applyClicks: r.apply_clicks ?? 0,
+            })));
+            setAnalyticsReady('ok');
+          }
         } else {
-          setAnalyticsReady('unavailable');
+          if (!cancelled) setAnalyticsReady('unavailable');
         }
       } catch {
-        setAnalyticsReady('unavailable');
+        if (!cancelled) setAnalyticsReady('unavailable');
       }
     })();
-  }, []);
+    return () => { cancelled = true; };
+  }, [fetchKey]);
 
   // ── Derived data ────────────────────────────────────────────────────────────
 
@@ -318,18 +323,40 @@ export const Dashboard: React.FC = () => {
   return (
     <div className="space-y-7">
       {/* ── Header ── */}
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <h2 className="text-2xl font-bold tracking-tight text-slate-900">대시보드</h2>
           <p className="mt-1 text-sm text-slate-500">공모전 현황·분야 분포·방문 분석을 한눈에 파악합니다.</p>
         </div>
         {fetchError && (
-          <div className="flex items-center gap-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
-            <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-            {fetchError}
+          <div
+            role="alert"
+            aria-live="polite"
+            className="flex items-center gap-3 text-xs text-rose-700 bg-rose-50 border border-rose-200 rounded-xl px-4 py-2.5"
+          >
+            <AlertCircle className="w-4 h-4 shrink-0" />
+            <span className="flex-1 min-w-0">API 연결 오류 — {fetchError}</span>
+            <button
+              type="button"
+              aria-label="API 데이터 재시도"
+              onClick={() => setFetchKey(k => k + 1)}
+              className="shrink-0 flex items-center gap-1 font-semibold hover:text-rose-900 transition"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+              재시도
+            </button>
           </div>
         )}
       </div>
+
+      {/* ── Empty state when no contests loaded (and no error) ── */}
+      {!fetchError && contests.length === 0 && (
+        <div className="rounded-2xl bg-slate-50 border border-dashed border-slate-300 p-8 text-center">
+          <BarChart2 className="w-8 h-8 text-slate-400 mx-auto mb-3" />
+          <p className="text-sm font-semibold text-slate-700">아직 등록된 공모전이 없습니다</p>
+          <p className="text-xs text-slate-400 mt-1">공모전을 등록하면 여기에 통계가 표시됩니다.</p>
+        </div>
+      )}
 
       {/* ── KPI Row ── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -364,6 +391,7 @@ export const Dashboard: React.FC = () => {
       </div>
 
       {/* ── Row 2: Annual Field Distribution + Status Pie ── */}
+      {contests.length > 0 && (
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
         {/* Stacked bar chart: annual × academic field */}
@@ -395,28 +423,36 @@ export const Dashboard: React.FC = () => {
 
         {/* Donut pie: contest active status */}
         <Card title="현재 공모전 현황" subtitle="진행중 / 예정 / 종료">
-          <div className="h-52">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={pieStatusData}
-                  cx="50%" cy="50%"
-                  innerRadius={52} outerRadius={78}
-                  paddingAngle={4} dataKey="value"
-                >
-                  {pieStatusData.map((_, i) => (
-                    <Cell key={i} fill={pieStatusColors[i]} />
-                  ))}
-                </Pie>
-                <Tooltip contentStyle={{ borderRadius: 12, border: '1px solid #e2e8f0', fontSize: 12 }} />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-          <CustomPieLegend data={pieStatusData} colors={pieStatusColors} />
+          {pieStatusData.length > 0 ? (
+            <>
+              <div className="h-52">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={pieStatusData}
+                      cx="50%" cy="50%"
+                      innerRadius={52} outerRadius={78}
+                      paddingAngle={4} dataKey="value"
+                    >
+                      {pieStatusData.map((_, i) => (
+                        <Cell key={i} fill={pieStatusColors[i]} />
+                      ))}
+                    </Pie>
+                    <Tooltip contentStyle={{ borderRadius: 12, border: '1px solid #e2e8f0', fontSize: 12 }} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+              <CustomPieLegend data={pieStatusData} colors={pieStatusColors} />
+            </>
+          ) : (
+            <p className="text-xs text-slate-400 py-12 text-center">공모전 데이터가 없습니다.</p>
+          )}
         </Card>
       </div>
+      )}
 
       {/* ── Row 3: Monthly Trend + Upcoming Deadlines ── */}
+      {contests.length > 0 && (
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
         {/* Area chart: monthly contest registration */}
@@ -471,8 +507,10 @@ export const Dashboard: React.FC = () => {
           )}
         </Card>
       </div>
+      )}
 
-      {/* ── Row 4: Field Ratio Pie ── */}
+      {/* ── Row 4: Field Ratio Pie + Insights ── */}
+      {contests.length > 0 && (
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <Card title="분야별 공모전 비율" subtitle="전체 공모전 기준">
           <div className="h-52">
@@ -534,8 +572,7 @@ export const Dashboard: React.FC = () => {
           )}
         </div>
       </div>
-
-      {/* ── Row 5: Visitor / Click Analytics ── */}
+      )}
       <Card
         title="방문자 · 클릭 분석"
         subtitle="사용자 웹 사이트 방문자 및 클릭 수"

@@ -26,10 +26,8 @@ function cx(...classes: Array<string | false | undefined | null>) {
 function Card({ title, right, children }: { title: string; right?: React.ReactNode; children: React.ReactNode }) {
   return (
     <section className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-      <div className="px-6 py-5 border-b border-slate-200 flex items-start justify-between gap-4">
-        <div className="min-w-0">
-          <h3 className="text-base font-bold text-slate-900">{title}</h3>
-        </div>
+      <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between gap-4">
+        <h3 className="text-sm font-semibold text-slate-700">{title}</h3>
         {right}
       </div>
       <div className="p-6">{children}</div>
@@ -89,24 +87,24 @@ function KPICard({
   icon: React.ComponentType<{ className?: string }>;
   tone: 'sky' | 'emerald' | 'violet' | 'amber';
 }) {
-  const toneCls =
+  const iconCls =
     tone === 'sky'
-      ? 'bg-sky-50 text-sky-700 ring-sky-200'
+      ? 'bg-gradient-to-br from-sky-400 to-blue-600 text-white shadow-sky-200'
       : tone === 'emerald'
-      ? 'bg-emerald-50 text-emerald-700 ring-emerald-200'
+      ? 'bg-gradient-to-br from-emerald-400 to-green-600 text-white shadow-emerald-200'
       : tone === 'violet'
-      ? 'bg-violet-50 text-violet-700 ring-violet-200'
-      : 'bg-amber-50 text-amber-800 ring-amber-200';
+      ? 'bg-gradient-to-br from-violet-400 to-purple-600 text-white shadow-violet-200'
+      : 'bg-gradient-to-br from-amber-400 to-orange-500 text-white shadow-amber-200';
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 flex items-start justify-between gap-4">
+    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 flex items-start justify-between gap-4">
       <div className="min-w-0">
-        <div className="text-sm font-semibold text-slate-600">{title}</div>
-        <div className="mt-1 text-2xl font-extrabold tracking-tight text-slate-900">{value}</div>
-        {subtitle && <div className="mt-1 text-xs text-slate-500">{subtitle}</div>}
+        <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide">{title}</div>
+        <div className="mt-2 text-2xl font-bold tracking-tight text-slate-900">{value}</div>
+        {subtitle && <div className="mt-1 text-xs text-slate-400">{subtitle}</div>}
       </div>
-      <div className={cx('w-11 h-11 rounded-2xl ring-1 flex items-center justify-center', toneCls)}>
-        <Icon className="w-5 h-5" />
+      <div className={cx('w-10 h-10 rounded-xl flex items-center justify-center shadow-md', iconCls)}>
+        <Icon className="w-[18px] h-[18px]" />
       </div>
     </div>
   );
@@ -193,22 +191,24 @@ export const Dashboard: React.FC = () => {
 
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <Card title="방문자 및 클릭 추이" right={<div className="text-xs text-slate-500">단위: 일</div>}>
-          <div className="h-80">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={dailyMetrics} margin={{ left: 8, right: 8, top: 8, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                <XAxis dataKey="date" tickFormatter={(v) => String(v).slice(5)} tick={{ fontSize: 12 }} />
-                <YAxis tick={{ fontSize: 12 }} />
-                <Tooltip />
-                <Line type="monotone" dataKey="visitors" name="방문자" stroke="#0EA5E9" strokeWidth={2} dot={false} />
-                <Line type="monotone" dataKey="clicks" name="클릭수" stroke="#22C55E" strokeWidth={2} dot={false} />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        </Card>
+        <div className="lg:col-span-2">
+          <Card title="방문자 및 클릭 추이" right={<div className="text-xs text-slate-400">단위: 일</div>}>
+            <div className="h-80">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={dailyMetrics} margin={{ left: 8, right: 8, top: 8, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                  <XAxis dataKey="date" tickFormatter={(v) => String(v).slice(5)} tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+                  <Tooltip contentStyle={{ borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 4px 24px rgba(0,0,0,0.06)' }} />
+                  <Line type="monotone" dataKey="visitors" name="방문자" stroke="#0EA5E9" strokeWidth={2.5} dot={false} activeDot={{ r: 4 }} />
+                  <Line type="monotone" dataKey="clicks" name="클릭수" stroke="#22C55E" strokeWidth={2.5} dot={false} activeDot={{ r: 4 }} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </Card>
+        </div>
 
-        <Card title="카테고리별 비율" right={<div className="text-xs text-slate-500">게시 수 기준</div>}>
+        <Card title="카테고리별 비율" right={<div className="text-xs text-slate-400">게시 수 기준</div>}>
           <div className="h-72">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
@@ -225,7 +225,7 @@ export const Dashboard: React.FC = () => {
                     <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
                   ))}
                 </Pie>
-                <Tooltip />
+                <Tooltip contentStyle={{ borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 4px 24px rgba(0,0,0,0.06)' }} />
               </PieChart>
             </ResponsiveContainer>
           </div>
@@ -233,14 +233,14 @@ export const Dashboard: React.FC = () => {
           <div className="mt-4 grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
             {categoryData.slice(0, 8).map((entry, index) => (
               <div key={entry.name} className="flex items-center gap-2 min-w-0">
-                <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: PIE_COLORS[index % PIE_COLORS.length] }} />
-                <div className="truncate text-slate-700">
+                <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: PIE_COLORS[index % PIE_COLORS.length] }} />
+                <div className="truncate text-xs text-slate-600">
                   {entry.name}
-                  <span className="text-slate-500"> · {entry.value}</span>
+                  <span className="text-slate-400"> · {entry.value}</span>
                 </div>
               </div>
             ))}
-            {categoryData.length === 0 && <div className="text-slate-500">표시할 데이터가 없습니다.</div>}
+            {categoryData.length === 0 && <div className="text-slate-500 text-xs">표시할 데이터가 없습니다.</div>}
           </div>
         </Card>
       </div>

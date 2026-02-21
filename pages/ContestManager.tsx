@@ -10,6 +10,7 @@ import {
   ApiContestUpsertBody,
 } from '../services/api';
 import { mapApiContestToContest } from '../services/contestMapper';
+import { Trash2, Pencil, RefreshCw, Plus, ArrowLeft } from 'lucide-react';
 
 type View = 'list' | 'create';
 type EditModalState = { open: boolean; id: string | null };
@@ -54,8 +55,8 @@ function cx(...classes: Array<string | false | undefined | null>) {
 }
 
 const btnBase =
-  'inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition';
-const btnSecondary = btnBase + ' bg-white border border-slate-200 hover:bg-slate-50';
+  'inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition focus:outline-none focus:ring-2 focus:ring-sky-200 focus:ring-offset-1';
+const btnSecondary = btnBase + ' bg-white border border-slate-200 text-slate-700 hover:bg-slate-50';
 const btnPrimary = btnBase + ' bg-sky-600 text-white hover:bg-sky-700';
 const btnDanger =
   btnBase + ' bg-rose-600 text-white hover:bg-rose-700 disabled:opacity-40 disabled:hover:bg-rose-600';
@@ -171,10 +172,10 @@ function ConfirmModal({ state, onClose }: { state: ConfirmState; onClose: () => 
 function SectionCard({ title, subtitle, right, children }: any) {
   return (
     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-      <div className="px-6 py-5 border-b border-slate-200 flex items-start justify-between gap-4">
+      <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between gap-4">
         <div className="min-w-0">
-          <div className="text-lg font-bold text-slate-900">{title}</div>
-          {subtitle && <div className="text-sm text-slate-500 mt-1">{subtitle}</div>}
+          <div className="text-sm font-semibold text-slate-700">{title}</div>
+          {subtitle && <div className="text-xs text-slate-400 mt-0.5">{subtitle}</div>}
         </div>
         {right}
       </div>
@@ -559,26 +560,29 @@ export const ContestManager: React.FC = () => {
   const allChecked = list.length > 0 && selectedIds.size === list.length;
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <div className="max-w-7xl mx-auto px-6 py-10 space-y-6">
+    <div className="space-y-6">
+      <div className="max-w-5xl mx-auto space-y-6">
         {/* Header */}
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-extrabold text-slate-900">공모전 게시/배포</h1>
-            <p className="text-slate-500 mt-1">목록 조회 · 신규 등록 · 수정 · 삭제</p>
+            <h1 className="text-2xl font-bold tracking-tight text-slate-900">공모전 게시/배포</h1>
+            <p className="text-sm text-slate-500 mt-1">목록 조회 · 신규 등록 · 수정 · 삭제</p>
           </div>
 
           {view === 'list' ? (
-            <div className="flex gap-2">
-              <button onClick={refresh} className={btnSecondary}>
+            <div className="flex gap-2 shrink-0">
+              <button onClick={refresh} className={cx(btnSecondary, 'gap-1.5')}>
+                <RefreshCw className="w-3.5 h-3.5" />
                 새로고침
               </button>
-              <button onClick={openCreate} className={btnPrimary}>
-                새 공모전 작성
+              <button onClick={openCreate} className={cx(btnPrimary, 'gap-1.5')}>
+                <Plus className="w-3.5 h-3.5" />
+                새 공모전
               </button>
             </div>
           ) : (
-            <button onClick={() => setView('list')} className={btnSecondary}>
+            <button onClick={() => setView('list')} className={cx(btnSecondary, 'gap-1.5')}>
+              <ArrowLeft className="w-3.5 h-3.5" />
               목록으로
             </button>
           )}
@@ -609,40 +613,62 @@ export const ContestManager: React.FC = () => {
             ) : list.length === 0 ? (
               <div className="text-slate-500">데이터가 없습니다.</div>
             ) : (
-              <div className="space-y-3">
+              <div className="space-y-2">
                 {list.map((c) => {
                   const checked = selectedIds.has(c.id);
                   const statusTone = c.status === ContestStatus.PUBLISHED ? 'sky' : c.status === ContestStatus.ARCHIVED ? 'rose' : 'slate';
+                  const dateRange = c.startDate || c.endDate
+                    ? [c.startDate, c.endDate].filter(Boolean).join(' ~ ')
+                    : null;
 
                   return (
                     <div
                       key={c.id}
                       className={cx(
-                        'rounded-2xl border border-slate-200 bg-white',
-                        'hover:shadow-sm hover:border-slate-300 transition',
-                        'px-4 py-4'
+                        'rounded-2xl border bg-white transition-all',
+                        'hover:shadow-sm hover:border-slate-300',
+                        checked ? 'border-sky-200 ring-1 ring-sky-100' : 'border-slate-200',
+                        'px-4 py-3.5'
                       )}
                     >
-                      <div className="grid grid-cols-[24px_1fr_auto] gap-3 items-start">
+                      <div className="flex items-center gap-3">
                         <input
                           type="checkbox"
                           checked={checked}
                           onChange={(e) => toggleSelect(c.id, e.target.checked)}
-                          className="mt-1"
+                          className="w-4 h-4 rounded border-slate-300 text-sky-600 focus:ring-sky-500 shrink-0"
                         />
 
-                        <button className="text-left min-w-0" onClick={() => openEdit(c.id)}>
-                          <div className="font-semibold text-slate-900 truncate">{c.title}</div>
-                          <div className="mt-2 flex flex-wrap gap-2">
+                        <button className="text-left min-w-0 flex-1" onClick={() => openEdit(c.id)}>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-semibold text-slate-900 text-sm truncate">{c.title}</span>
+                          </div>
+                          <div className="mt-1.5 flex flex-wrap gap-1.5 items-center">
                             <Chip>{c.category}</Chip>
                             <Chip tone={statusTone as any}>{c.status}</Chip>
                             {c.targets?.length ? <Chip tone="slate">대상 {c.targets.length}개</Chip> : null}
+                            {dateRange && (
+                              <span className="text-xs text-slate-400">{dateRange}</span>
+                            )}
                           </div>
                         </button>
 
-                        <button onClick={() => askDeleteOne(c.id)} className="text-xs font-semibold text-rose-600 hover:underline">
-                          삭제
-                        </button>
+                        <div className="flex items-center gap-1 shrink-0">
+                          <button
+                            onClick={() => openEdit(c.id)}
+                            className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition"
+                            title="수정"
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => askDeleteOne(c.id)}
+                            className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:bg-rose-50 hover:text-rose-600 transition"
+                            title="삭제"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       </div>
                     </div>
                   );

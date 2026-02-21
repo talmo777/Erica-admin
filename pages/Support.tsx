@@ -196,7 +196,9 @@ const EmergencySection = () => {
             </div>
           </div>
         ))}
-        {tickets.length === 0 && <p className="p-8 text-center text-slate-500">접수된 티켓이 없습니다.</p>}
+      {tickets.length === 0 && (
+        <p className="p-10 text-center text-slate-400 text-sm">접수된 티켓이 없습니다.</p>
+      )}
       </div>
     </div>
   );

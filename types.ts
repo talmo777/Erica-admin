@@ -111,6 +111,16 @@ export interface InternalFeedback {
   isResolved: boolean;
 }
 
+// --- Admin Profile ---
+
+/** 관리자 프로필 (사용자 웹에 노출되지 않음, 관리자 전용) */
+export interface AdminProfile {
+  name: string;
+  role: string;
+  contact: string;
+  email: string;
+}
+
 // --- UI constants ---
 
 export const TARGET_OPTIONS: TargetSite[] = [

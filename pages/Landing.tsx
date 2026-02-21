@@ -1,12 +1,21 @@
 import React, { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { HYU_LOGO_URL } from '../constants';
+import { useAuth } from '../context/AuthContext';
 
 export const Landing: React.FC = () => {
   const navigate = useNavigate();
+  const { isAuthenticated, approval, loading } = useAuth();
 
   const heroRef = useRef<HTMLDivElement | null>(null);
   const rafRef = useRef<number | null>(null);
+
+  // 이미 로그인+승인된 사용자는 바로 관리자 툴로 이동
+  useEffect(() => {
+    if (!loading && isAuthenticated && approval === 'APPROVED') {
+      navigate('/admin', { replace: true });
+    }
+  }, [loading, isAuthenticated, approval, navigate]);
 
   useEffect(() => {
     const el = heroRef.current;

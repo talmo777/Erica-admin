@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { AdminLayout } from './components/Layout';
+import { ProfileSetupModal } from './components/ProfileSetupModal';
 import { Dashboard } from './pages/Dashboard';
 import { ContestManager } from './pages/ContestManager';
 import CalendarView from './pages/Calendar';
@@ -29,39 +30,58 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
   return <>{children}</>;
 };
 
+/** 프로필 미완성 관리자에게 설정 모달을 표시 */
+const ProfileGate: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { isAuthenticated, approval, loading, profile } = useAuth();
+  const profileIncomplete =
+    !loading &&
+    isAuthenticated &&
+    approval === 'APPROVED' &&
+    (!profile?.name || !profile?.role || !profile?.contact);
+
+  return (
+    <>
+      {children}
+      <ProfileSetupModal open={profileIncomplete} />
+    </>
+  );
+};
+
 const App: React.FC = () => {
   return (
     <AuthProvider>
       <BrowserRouter>
-        <Routes>
-          {/* ✅ Public: 기존 첫 화면 유지 */}
-          <Route path="/" element={<Landing />} />
+        <ProfileGate>
+          <Routes>
+            {/* ✅ Public: 기존 첫 화면 유지 */}
+            <Route path="/" element={<Landing />} />
 
-          {/* ✅ Public: 로그인/승인요청 */}
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/request-access" element={<RequestAccessPage />} />
-          <Route path="/access-denied" element={<AccessDeniedPage />} />
-          <Route path="/auth/callback" element={<AuthCallbackPage />} />
+            {/* ✅ Public: 로그인/승인요청 */}
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/request-access" element={<RequestAccessPage />} />
+            <Route path="/access-denied" element={<AccessDeniedPage />} />
+            <Route path="/auth/callback" element={<AuthCallbackPage />} />
 
-          {/* ✅ Protected: 승인된 관리자만 */}
-          <Route
-            path="/admin"
-            element={
-              <ProtectedRoute>
-                <AdminLayout />
-              </ProtectedRoute>
-            }
-          >
-            <Route index element={<Dashboard />} />
-            <Route path="contests" element={<ContestManager />} />
-            <Route path="calendar" element={<CalendarView />} />
-            <Route path="feedback" element={<SupportPage />} />
-            <Route path="emergency" element={<SupportPage />} />
-          </Route>
+            {/* ✅ Protected: 승인된 관리자만 */}
+            <Route
+              path="/admin"
+              element={
+                <ProtectedRoute>
+                  <AdminLayout />
+                </ProtectedRoute>
+              }
+            >
+              <Route index element={<Dashboard />} />
+              <Route path="contests" element={<ContestManager />} />
+              <Route path="calendar" element={<CalendarView />} />
+              <Route path="feedback" element={<SupportPage />} />
+              <Route path="emergency" element={<SupportPage />} />
+            </Route>
 
-          {/* ✅ fallback은 로그인 강제 X → 첫 화면으로 */}
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
+            {/* ✅ fallback은 로그인 강제 X → 첫 화면으로 */}
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </ProfileGate>
       </BrowserRouter>
     </AuthProvider>
   );

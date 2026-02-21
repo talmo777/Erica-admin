@@ -10,7 +10,36 @@ import {
   ApiContestUpsertBody,
 } from '../services/api';
 import { mapApiContestToContest } from '../services/contestMapper';
-import { Trash2, Pencil, RefreshCw, Plus, ArrowLeft } from 'lucide-react';
+import { Trash2, Pencil, RefreshCw, Plus, ArrowLeft, UserCircle2, X } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+import { AdminProfile } from '../types';
+
+// ─── Publisher localStorage helpers ──────────────────────────────────────────
+
+const PUBLISHER_MAP_KEY = 'erica_contest_publishers_v1';
+
+function savePublisher(contestId: string, info: AdminProfile) {
+  try {
+    const raw = localStorage.getItem(PUBLISHER_MAP_KEY);
+    const map: Record<string, AdminProfile> = raw ? JSON.parse(raw) : {};
+    map[contestId] = info;
+    localStorage.setItem(PUBLISHER_MAP_KEY, JSON.stringify(map));
+  } catch (e) {
+    console.error('[publisher] savePublisher failed:', e);
+  }
+}
+
+function getPublisher(contestId: string): AdminProfile | null {
+  try {
+    const raw = localStorage.getItem(PUBLISHER_MAP_KEY);
+    if (!raw) return null;
+    const map: Record<string, AdminProfile> = JSON.parse(raw);
+    return map[contestId] ?? null;
+  } catch (e) {
+    console.error('[publisher] getPublisher failed:', e);
+    return null;
+  }
+}
 
 type View = 'list' | 'create';
 type EditModalState = { open: boolean; id: string | null };
@@ -184,6 +213,44 @@ function SectionCard({ title, subtitle, right, children }: any) {
   );
 }
 
+function PublisherBadge({ contestId }: { contestId: string }) {
+  const [open, setOpen] = React.useState(false);
+  const info = getPublisher(contestId);
+  if (!info || !info.name) return null;
+
+  return (
+    <div className="relative inline-block">
+      <button
+        type="button"
+        onClick={(e) => { e.stopPropagation(); setOpen(v => !v); }}
+        className="text-[11px] font-medium text-sky-600 hover:text-sky-800 hover:underline flex items-center gap-1"
+      >
+        <UserCircle2 className="w-3 h-3" />
+        {info.name}
+      </button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
+          <div className="absolute right-0 top-6 z-50 bg-white rounded-xl border border-slate-200 shadow-xl p-4 w-56 text-left">
+            <div className="flex items-center justify-between mb-2">
+              <div className="text-sm font-bold text-slate-900">{info.name}</div>
+              <button type="button" onClick={() => setOpen(false)} className="text-slate-400 hover:text-slate-700">
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+            <div className="space-y-1.5 text-xs text-slate-600">
+              <div><span className="font-medium text-slate-500">직책</span> {info.role || '-'}</div>
+              <div><span className="font-medium text-slate-500">이메일</span> {info.email || '-'}</div>
+              <div><span className="font-medium text-slate-500">연락처</span> {info.contact || '-'}</div>
+            </div>
+            <p className="mt-3 text-[10px] text-slate-400">관리자 전용 정보 · 사용자 웹 비노출</p>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 function ContestForm({
   mode,
   initial,
@@ -195,6 +262,7 @@ function ContestForm({
   onCancel: () => void;
   onSaved: () => Promise<void>;
 }) {
+  const { profile } = useAuth();
   const [form, setForm] = useState<Contest>(initial);
   const [uploadFile, setUploadFile] = useState<File | null>(null);
 
@@ -239,8 +307,14 @@ function ContestForm({
 
       if (mode === 'edit') {
         await patchContest(form.id, body);
+        // Save publisher mapping for edited contest (update)
+        if (profile?.name) savePublisher(form.id, { name: profile.name, role: profile.role, contact: profile.contact, email: profile.email });
       } else {
-        await createContest(body);
+        const created = await createContest(body);
+        // `createContest` returns ApiContest with an `id` field per services/api.ts contract
+        if (profile?.name && created?.id) {
+          savePublisher(created.id, { name: profile.name, role: profile.role, contact: profile.contact, email: profile.email });
+        }
       }
 
       await onSaved();
@@ -451,6 +525,14 @@ function ContestForm({
       </div>
 
       <div className="pt-2 flex gap-2 justify-end">
+        {/* Publisher info (read-only) */}
+        {profile?.name && (
+          <div className="mr-auto flex items-center gap-2 text-xs text-slate-500 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2">
+            <UserCircle2 className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+            <span>게시자: <span className="font-medium text-slate-700">{profile.name}</span></span>
+            {profile.role && <span className="text-slate-400">· {profile.role}</span>}
+          </div>
+        )}
         <button onClick={onCancel} className={btnSecondary}>
           취소
         </button>
@@ -650,6 +732,7 @@ export const ContestManager: React.FC = () => {
                             {dateRange && (
                               <span className="text-xs text-slate-400">{dateRange}</span>
                             )}
+                            <PublisherBadge contestId={c.id} />
                           </div>
                         </button>
 

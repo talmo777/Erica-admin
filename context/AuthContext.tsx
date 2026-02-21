@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { supabase } from '../services/supabaseClient';
+import { AdminProfile } from '../types';
 
 type ApprovalState = 'UNKNOWN' | 'APPROVED' | 'PENDING' | 'REJECTED' | 'UNAUTHORIZED';
 
@@ -18,6 +19,8 @@ interface AuthContextType {
   signOut: () => Promise<void>;
   refreshApproval: () => Promise<void>;
   accessToken: string | null;
+  profile: AdminProfile | null;
+  saveProfile: (p: AdminProfile) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -39,11 +42,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [approval, setApproval] = useState<ApprovalState>('UNKNOWN');
   const [user, setUser] = useState<AuthUser | null>(null);
   const [accessToken, setAccessToken] = useState<string | null>(null);
+  const [profile, setProfile] = useState<AdminProfile | null>(null);
 
   const isAuthenticated = !!accessToken;
 
   // Prevents parallel refreshApproval calls — second caller awaits the ongoing promise
   const refreshPromiseRef = React.useRef<Promise<void> | null>(null);
+
+  const saveProfile = async (p: AdminProfile) => {
+    const { error } = await supabase.auth.updateUser({
+      data: {
+        admin_name: p.name,
+        admin_role: p.role,
+        admin_contact: p.contact,
+      },
+    });
+    if (error) throw error;
+    setProfile(p);
+  };
 
   const refreshApproval = async () => {
     if (refreshPromiseRef.current) {
@@ -54,6 +70,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       requireBase();
       const token = await getAccessToken();
       setAccessToken(token);
+
+      // Load admin profile from Supabase user session metadata
+      const { data: sd } = await supabase.auth.getSession();
+      const meta = sd.session?.user?.user_metadata ?? {};
+      const sessionEmail = sd.session?.user?.email ?? '';
+      if (token && sessionEmail) {
+        setProfile({
+          name: meta.admin_name ?? '',
+          role: meta.admin_role ?? '',
+          contact: meta.admin_contact ?? '',
+          email: sessionEmail,
+        });
+      } else {
+        setProfile(null);
+      }
 
       if (!token) {
         setApproval('UNAUTHORIZED');
@@ -117,6 +148,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setAccessToken(null);
     setApproval('UNAUTHORIZED');
     setUser(null);
+    setProfile(null);
   };
 
   useEffect(() => {
@@ -159,8 +191,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     signInWithGoogle,
     signOut,
     refreshApproval,
-    accessToken
-  }), [isAuthenticated, approval, user, loading, accessToken]);
+    accessToken,
+    profile,
+    saveProfile,
+  }), [isAuthenticated, approval, user, loading, accessToken, profile]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

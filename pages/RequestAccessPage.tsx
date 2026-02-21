@@ -17,6 +17,12 @@ export const RequestAccessPage: React.FC = () => {
   const [done, setDone] = React.useState<string | null>(null);
   const [error, setError] = React.useState<string | null>(null);
 
+  React.useEffect(() => {
+    if (!done) return;
+    const timer = setTimeout(() => navigate('/'), 3000);
+    return () => clearTimeout(timer);
+  }, [done, navigate]);
+
   const submit = async () => {
     if (!API_BASE) throw new Error('VITE_BOARD_API_BASE_URL is not set');
 
@@ -40,7 +46,7 @@ export const RequestAccessPage: React.FC = () => {
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data?.message ?? '요청 실패');
 
-      setDone('접수 완료. 승인 후 재시도하시기 바랍니다.');
+      setDone('접수 완료. 승인 안내가 갈 때까지 잠시 기다려주세요.\n잠시 후 홈 화면으로 이동합니다.');
     } catch (e: any) {
       setError(e?.message ?? '요청 실패');
     } finally {

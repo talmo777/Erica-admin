@@ -230,16 +230,22 @@ const Calendar: React.FC = () => {
   const nextMonth = () => setCurrentDate((d) => new Date(d.getFullYear(), d.getMonth() + 1, 1));
 
   return (
-    <div className="max-w-6xl mx-auto p-6">
-      <div className="grid lg:grid-cols-[280px_1fr] gap-6">
+    <div className="space-y-6">
+      {/* Page header */}
+      <div>
+        <h2 className="text-2xl font-bold tracking-tight text-slate-900">캘린더</h2>
+        <p className="mt-1 text-sm text-slate-500">공모전 신청 시작·마감 일정을 한눈에 확인합니다.</p>
+      </div>
+
+      <div className="grid lg:grid-cols-[260px_1fr] gap-6">
         {/* LEFT PANEL */}
-        <aside className="space-y-6">
+        <aside className="space-y-4">
           {/* 관심 분야 */}
-          <div className="bg-white rounded-xl border p-5">
-            <div className="text-sm font-semibold text-slate-800 mb-3">관심 분야</div>
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
+            <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">관심 분야</div>
             <div className="space-y-2">
               {AREAS.map((a) => (
-                <label key={a.key} className="flex items-center gap-3 text-sm text-slate-700 select-none">
+                <label key={a.key} className="flex items-center gap-3 text-sm text-slate-700 select-none cursor-pointer">
                   <input
                     type="checkbox"
                     className="h-4 w-4 rounded border-slate-300 text-sky-600 focus:ring-sky-500"
@@ -250,9 +256,9 @@ const Calendar: React.FC = () => {
                 </label>
               ))}
             </div>
-            <div className="mt-3 flex gap-2">
+            <div className="mt-4 flex gap-2">
               <button
-                className="text-xs px-3 py-1.5 rounded-lg border bg-slate-50 hover:bg-slate-100"
+                className="text-xs px-3 py-1.5 rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 font-medium transition"
                 onClick={() => {
                   const all: Record<AreaKey, boolean> = {
                     창업: true,
@@ -269,7 +275,7 @@ const Calendar: React.FC = () => {
                 전체 선택
               </button>
               <button
-                className="text-xs px-3 py-1.5 rounded-lg border bg-slate-50 hover:bg-slate-100"
+                className="text-xs px-3 py-1.5 rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 font-medium transition"
                 onClick={() => {
                   const none: Record<AreaKey, boolean> = {
                     창업: false,
@@ -289,43 +295,39 @@ const Calendar: React.FC = () => {
           </div>
 
           {/* 마감 임박 */}
-          <div className="bg-white rounded-xl border p-5">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
-                <span className="text-sm font-semibold text-slate-800"> 오늘의 마감</span>
-                <span className="text-xs px-2 py-1 rounded-full bg-slate-100 text-slate-600">
+                <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">오늘의 마감</span>
+                <span className="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-500">
                   {today.getMonth() + 1}/{today.getDate()} 기준
                 </span>
               </div>
             </div>
 
             {upcomingDeadlines.length === 0 ? (
-              <div className="text-sm text-slate-500">30일 내 마감 공모전이 없습니다.</div>
+              <div className="text-sm text-slate-400">30일 내 마감 공모전이 없습니다.</div>
             ) : (
-              <div className="space-y-3">
+              <div className="space-y-2">
                 {upcomingDeadlines.map(({ c, d, area }) => (
                   <button
                     key={c.id}
                     onClick={() => openContest(c)}
-                    className="w-full text-left rounded-lg p-3 hover:bg-slate-50 transition-colors"
+                    className="w-full text-left rounded-xl p-3 hover:bg-slate-50 transition-colors border border-transparent hover:border-slate-200"
                   >
                     <div className="flex items-start justify-between gap-3">
-                      <div className="space-y-1">
+                      <div className="space-y-1 min-w-0">
                         <div className="flex items-center gap-2">
-                          <span className="text-xs px-2 py-1 rounded-md bg-amber-50 text-amber-700 font-semibold">
+                          <span className="text-xs px-2 py-0.5 rounded-md bg-amber-50 text-amber-700 font-semibold ring-1 ring-amber-200">
                             D-{d}
                           </span>
-                          <span className="text-xs text-slate-500">{area}</span>
+                          <span className="text-xs text-slate-400">{area}</span>
                         </div>
-                        <div className="text-sm font-semibold text-slate-900 line-clamp-2">{c.title}</div>
-                        <div className="text-xs text-slate-500 line-clamp-1">{c.source || '출처 미상'}</div>
+                        <div className="text-sm font-semibold text-slate-800 line-clamp-2">{c.title}</div>
                       </div>
 
-                      <span className="text-xs px-2 py-1 rounded-full ring-1 ring-inset whitespace-nowrap {''}">
-                        {/* 상태 배지 */}
-                        <span className={['px-2 py-1 rounded-full ring-1 ring-inset', getStatus(today, c).cls].join(' ')}>
-                          {getStatus(today, c).label}
-                        </span>
+                      <span className={['shrink-0 text-xs px-2 py-0.5 rounded-full ring-1 ring-inset font-medium', getStatus(today, c).cls].join(' ')}>
+                        {getStatus(today, c).label}
                       </span>
                     </div>
                   </button>
@@ -335,20 +337,20 @@ const Calendar: React.FC = () => {
           </div>
 
           {/* 최근 본 공모전 */}
-          <div className="bg-white rounded-xl border p-5">
-            <div className="text-sm font-semibold text-slate-800 mb-3">최근 본 공모전</div>
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
+            <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">최근 본 공모전</div>
             {recent.length === 0 ? (
-              <div className="text-sm text-slate-500">아직 없음</div>
+              <div className="text-sm text-slate-400">아직 없음</div>
             ) : (
-              <div className="space-y-2">
+              <div className="space-y-1">
                 {recent.slice(0, 6).map((c) => (
                   <button
                     key={c.id}
                     onClick={() => openContest(c)}
-                    className="w-full text-left rounded-lg px-3 py-2 hover:bg-slate-50"
+                    className="w-full text-left rounded-xl px-3 py-2 hover:bg-slate-50 transition"
                   >
-                    <div className="text-sm text-slate-800 line-clamp-1">{c.title}</div>
-                    <div className="text-xs text-slate-500 mt-0.5">
+                    <div className="text-sm text-slate-700 line-clamp-1 font-medium">{c.title}</div>
+                    <div className="text-xs text-slate-400 mt-0.5">
                       {c.endDate ? `마감: ${c.endDate}` : '마감일 없음'}
                     </div>
                   </button>
@@ -358,29 +360,29 @@ const Calendar: React.FC = () => {
           </div>
         </aside>
 
-        {/* RIGHT: CALENDAR (기존 UI 유지) */}
-        <section className="bg-white rounded-xl border p-6">
+        {/* RIGHT: CALENDAR */}
+        <section className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
           <div className="flex items-center justify-between mb-6">
-            <h1 className="text-2xl font-bold text-gray-900">캘린더</h1>
-            <div className="flex items-center gap-3">
-              <button onClick={prevMonth} className="p-2 rounded-lg border hover:bg-gray-50" aria-label="prev month">
-                <ChevronLeft className="w-5 h-5" />
+            <div className="text-lg font-bold text-slate-900">{monthLabel}</div>
+            <div className="flex items-center gap-2">
+              <button onClick={prevMonth} className="w-8 h-8 flex items-center justify-center rounded-xl border border-slate-200 hover:bg-slate-50 transition" aria-label="prev month">
+                <ChevronLeft className="w-4 h-4 text-slate-600" />
               </button>
-              <div className="font-semibold text-lg w-32 text-center">{monthLabel}</div>
-              <button onClick={nextMonth} className="p-2 rounded-lg border hover:bg-gray-50" aria-label="next month">
-                <ChevronRight className="w-5 h-5" />
+              <button onClick={nextMonth} className="w-8 h-8 flex items-center justify-center rounded-xl border border-slate-200 hover:bg-slate-50 transition" aria-label="next month">
+                <ChevronRight className="w-4 h-4 text-slate-600" />
               </button>
             </div>
           </div>
 
-          <div className="grid grid-cols-7 gap-px bg-gray-200 rounded-lg overflow-hidden">
+          <div className="grid grid-cols-7 gap-px bg-slate-200 rounded-xl overflow-hidden">
             {['일', '월', '화', '수', '목', '금', '토'].map((day, idx) => (
               <div
                 key={day}
                 className={[
-                  'bg-gray-50 p-3 text-center text-sm font-semibold',
-                  idx === 0 ? 'text-red-600' : '',
-                  idx === 6 ? 'text-blue-600' : '',
+                  'bg-slate-50 px-2 py-2.5 text-center text-xs font-semibold',
+                  idx === 0 ? 'text-rose-500' : '',
+                  idx === 6 ? 'text-sky-600' : '',
+                  idx !== 0 && idx !== 6 ? 'text-slate-500' : '',
                 ].join(' ')}
               >
                 {day}
@@ -400,22 +402,27 @@ const Calendar: React.FC = () => {
                 <div
                   key={i}
                   className={[
-                    'bg-white p-2 h-28 border-t border-l relative',
+                    'bg-white p-2 h-28 relative',
                     isToday ? 'ring-2 ring-inset ring-sky-400' : '',
                   ].join(' ')}
                 >
                   <div className="flex items-center justify-between">
-                    <span className={['text-sm font-semibold', isToday ? 'text-sky-700' : 'text-gray-700'].join(' ')}>
+                    <span
+                      className={[
+                        'text-xs font-semibold w-6 h-6 flex items-center justify-center rounded-full',
+                        isToday ? 'bg-sky-500 text-white' : 'text-slate-600',
+                      ].join(' ')}
+                    >
                       {i + 1}
                     </span>
                   </div>
 
-                  <div className="mt-1 space-y-1">
+                  <div className="mt-1 space-y-0.5">
                     {chips.map((chip) => (
                       <button
                         key={chip.key}
                         onClick={() => openContest(chip.contest)}
-                        className={['w-full text-left text-xs px-2 py-1 rounded-md ring-1 ring-inset', chip.cls].join(' ')}
+                        className={['w-full text-left text-[10px] px-1.5 py-0.5 rounded ring-1 ring-inset font-medium', chip.cls].join(' ')}
                         title={chip.contest.title}
                       >
                         <div className="truncate">
@@ -429,10 +436,11 @@ const Calendar: React.FC = () => {
             })}
           </div>
 
-          <div className="mt-4 text-xs text-slate-500">
-            * 색상: <span className="px-2 py-0.5 rounded ring-1 ring-inset bg-emerald-50 text-emerald-700 ring-emerald-200">신청 시작</span>{' '}
-            <span className="px-2 py-0.5 rounded ring-1 ring-inset bg-sky-50 text-sky-700 ring-sky-200">접수 중</span>{' '}
-            <span className="px-2 py-0.5 rounded ring-1 ring-inset bg-rose-50 text-rose-700 ring-rose-200">신청 마감</span>
+          <div className="mt-4 flex flex-wrap items-center gap-3 text-xs text-slate-400">
+            <span>색상:</span>
+            <span className="px-2 py-0.5 rounded ring-1 ring-inset bg-emerald-50 text-emerald-700 ring-emerald-200 font-medium">신청 시작</span>
+            <span className="px-2 py-0.5 rounded ring-1 ring-inset bg-sky-50 text-sky-700 ring-sky-200 font-medium">접수 중</span>
+            <span className="px-2 py-0.5 rounded ring-1 ring-inset bg-rose-50 text-rose-700 ring-rose-200 font-medium">신청 마감</span>
           </div>
         </section>
       </div>

@@ -9,11 +9,12 @@ import {
   Send,
   LogOut,
   Menu,
-  User,
+  X,
   ChevronsLeft,
   ChevronsRight,
 } from 'lucide-react';
 import { HYU_LOGO_URL, MOYEON_LOGO_URL, MOYEON_LINK_URL, USER_WEB_URL } from '../constants';
+import { ProfileSetupModal } from './ProfileSetupModal';
 
 type NavItem = {
   path: string;
@@ -26,31 +27,15 @@ function cx(...classes: Array<string | false | undefined | null>) {
   return classes.filter(Boolean).join(' ');
 }
 
-const Tooltip: React.FC<{ show: boolean; text: string }> = ({ show, text }) => {
-  if (!show) return null;
-  return (
-    <span
-      className={cx(
-        'hidden md:block',
-        'absolute left-[72px] top-1/2 -translate-y-1/2',
-        'px-2 py-1 rounded-md',
-        'bg-slate-900 text-white text-xs',
-        'shadow-lg whitespace-nowrap'
-      )}
-    >
-      {text}
-    </span>
-  );
-};
-
 export const AdminLayout: React.FC = () => {
-  const { logout, user } = useAuth();
+  const { signOut, user, profile } = useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
-
-  // Desktop sidebar behavior
   const [isPinnedOpen, setIsPinnedOpen] = React.useState(false);
   const [isHovering, setIsHovering] = React.useState(false);
   const isDesktopExpanded = isPinnedOpen || isHovering;
+
+  // 프로필 미완성 시 설정 모달 표시 (관리자 영역에서만)
+  const profileIncomplete = !profile?.name || !profile?.role || !profile?.contact;
 
   const navItems: NavItem[] = [
     { path: '/admin', label: '대시보드', icon: LayoutDashboard, end: true },
@@ -60,23 +45,30 @@ export const AdminLayout: React.FC = () => {
     { path: '/admin/contests', label: '공모전 게시/배포', icon: Send },
   ];
 
+  const initials = user?.name
+    ? user.name.slice(0, 1).toUpperCase()
+    : user?.email
+    ? user.email.slice(0, 1).toUpperCase()
+    : 'A';
+
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col md:flex-row">
       {/* Mobile header */}
-      <div className="md:hidden bg-white/80 backdrop-blur border-b border-slate-200 px-4 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <img src={HYU_LOGO_URL} alt="HYU" className="w-8 h-8 rounded-lg" />
-          <div className="leading-tight">
-            <div className="font-bold text-slate-900">HY-LINK</div>
-            <div className="text-xs text-slate-500">관리자 시스템</div>
-          </div>
+      <div className="md:hidden bg-slate-950 px-4 py-3 flex items-center justify-between shrink-0">
+        <div className="flex items-center gap-2.5">
+          <img src={HYU_LOGO_URL} alt="HYU" className="w-7 h-7 rounded-lg" />
+          <span className="text-sm font-bold text-white tracking-tight">HY-LINK</span>
+          <span className="text-xs text-slate-500">관리자</span>
         </div>
         <button
           onClick={() => setIsMobileMenuOpen((v) => !v)}
-          className="w-10 h-10 rounded-xl hover:bg-slate-100 flex items-center justify-center"
+          className="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 flex items-center justify-center transition"
           aria-label="toggle mobile menu"
         >
-          <Menu className="w-5 h-5 text-slate-700" />
+          {isMobileMenuOpen
+            ? <X className="w-4 h-4 text-slate-300" />
+            : <Menu className="w-4 h-4 text-slate-300" />
+          }
         </button>
       </div>
 
@@ -86,154 +78,126 @@ export const AdminLayout: React.FC = () => {
         onMouseLeave={() => setIsHovering(false)}
         className={cx(
           'fixed md:sticky top-0 left-0 z-40 h-screen',
-          'bg-white border-r border-slate-200',
-          'flex flex-col',
+          'bg-slate-950 flex flex-col',
           'transition-all duration-200 ease-out',
           isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0',
-          isDesktopExpanded ? 'md:w-72' : 'md:w-20',
-          'w-72' // mobile width
+          isDesktopExpanded ? 'md:w-60' : 'md:w-[68px]',
+          'w-60'
         )}
       >
-        {/* Scrollbar hide (sidebar/nav 내부 스크롤바 안 보이게) */}
         <style>{`
-          .hide-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
-          .hide-scrollbar::-webkit-scrollbar { width: 0px; height: 0px; }
+          .hide-scrollbar{scrollbar-width:none;-ms-overflow-style:none}
+          .hide-scrollbar::-webkit-scrollbar{display:none}
         `}</style>
 
-        {/* ✅ Brand header: grid(로고/텍스트/핀)로 안정 정렬 */}
-        <div className="px-4 py-4 border-b border-slate-200">
-          <div className="grid grid-cols-[44px_1fr_44px] items-center gap-3">
-            {/* Left: Logo */}
+        {/* Brand */}
+        <div className="h-14 px-3 flex items-center gap-3 border-b border-slate-800/60 shrink-0">
+          <a
+            href={USER_WEB_URL}
+            target="_blank"
+            rel="noreferrer"
+            className="w-8 h-8 rounded-xl bg-slate-800 hover:bg-slate-700 flex items-center justify-center shrink-0 transition"
+          >
+            <img src={HYU_LOGO_URL} alt="HYU" className="w-5 h-5 rounded-md" />
+          </a>
+          {isDesktopExpanded && (
             <a
               href={USER_WEB_URL}
               target="_blank"
               rel="noreferrer"
-              className="w-11 h-11 rounded-2xl flex items-center justify-center hover:bg-slate-50 transition"
+              className="hidden md:flex flex-col flex-1 min-w-0"
             >
-              <img src={HYU_LOGO_URL} alt="HYU" className="w-10 h-10 rounded-xl" />
+              <span className="text-[13px] font-bold text-white tracking-tight truncate leading-none">HY-LINK</span>
+              <span className="text-[11px] text-slate-500 truncate leading-none mt-0.5">관리자 시스템</span>
             </a>
-
-            {/* Middle: Text (expanded only) */}
-            <a
-              href={USER_WEB_URL}
-              target="_blank"
-              rel="noreferrer"
-              className={cx('min-w-0', isDesktopExpanded ? 'hidden md:block' : 'hidden')}
-            >
-              <div className="min-w-0">
-                <div className="font-extrabold text-slate-900 truncate tracking-tight">HY-LINK</div>
-                <div className="text-xs text-slate-500 truncate">관리자 시스템</div>
-              </div>
-            </a>
-
-            {/* Right: Pin (항상 우측 고정) */}
-            <button
-              className="hidden md:flex w-11 h-11 rounded-2xl hover:bg-slate-100 items-center justify-center transition"
-              onClick={() => setIsPinnedOpen((v) => !v)}
-              aria-label="toggle sidebar pin"
-              title={isPinnedOpen ? '사이드바 접기' : '사이드바 고정 펼치기'}
-            >
-              {isPinnedOpen ? (
-                <ChevronsLeft className="w-5 h-5 text-slate-700" />
-              ) : (
-                <ChevronsRight className="w-5 h-5 text-slate-700" />
-              )}
-            </button>
-          </div>
+          )}
+          <button
+            className="hidden md:flex ml-auto w-6 h-6 rounded-md shrink-0 items-center justify-center text-slate-600 hover:text-slate-300 hover:bg-slate-800 transition"
+            onClick={() => setIsPinnedOpen((v) => !v)}
+            aria-label="toggle sidebar pin"
+          >
+            {isPinnedOpen
+              ? <ChevronsLeft className="w-3.5 h-3.5" />
+              : <ChevronsRight className="w-3.5 h-3.5" />
+            }
+          </button>
         </div>
 
         {/* Navigation */}
-        <nav className={cx('flex-1 px-3 py-3 space-y-1 overflow-y-auto hide-scrollbar')}>
-          {navItems.map((item) => {
-            return (
-              <NavLink
-                key={item.path}
-                to={item.path}
-                end={item.end}
-                onClick={() => setIsMobileMenuOpen(false)}
-                className={({ isActive }) =>
-                  cx(
-                    'group relative w-full rounded-2xl transition-all duration-150',
-                    'focus:outline-none',
-                    // 접힘 상태에서는 아이콘 중앙정렬이 핵심이라 padding 최소/일관 유지
-                    isDesktopExpanded ? 'px-3 py-2' : 'px-2 py-2',
-                    isActive
-                      ? 'bg-sky-50 text-sky-900 ring-1 ring-sky-200'
-                      : 'text-slate-700 hover:bg-slate-100 hover:text-slate-900'
-                  )
-                }
-              >
-                {({ isActive }) => (
-                  <>
-                    {/* ✅ 파란 세로 바(Active indicator) 제거 */}
-
-                    <div
-                      className={cx(
-                        'flex items-center',
-                        isDesktopExpanded ? 'justify-start gap-3' : 'justify-center'
-                      )}
-                    >
-                      {/* Icon box: 항상 동일 크기/중앙 */}
-                      <div
-                        className={cx(
-                          'w-10 h-10 rounded-2xl flex items-center justify-center',
-                          isActive ? 'bg-white shadow-sm ring-1 ring-slate-200' : 'bg-transparent'
-                        )}
-                      >
-                        <item.icon className="w-5 h-5" />
-                      </div>
-
-                      {/* Label (expanded only) */}
-                      {isDesktopExpanded && (
-                        <div className="hidden md:block min-w-0">
-                          <div className="text-sm font-semibold truncate">{item.label}</div>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Tooltip (collapsed only) */}
-                    <Tooltip show={!isDesktopExpanded} text={item.label} />
-                  </>
-                )}
-              </NavLink>
-            );
-          })}
+        <nav className="flex-1 px-2 py-3 space-y-0.5 overflow-y-auto hide-scrollbar">
+          {navItems.map((item) => (
+            <NavLink
+              key={item.path}
+              to={item.path}
+              end={item.end}
+              onClick={() => setIsMobileMenuOpen(false)}
+              title={!isDesktopExpanded ? item.label : undefined}
+              className={({ isActive }) =>
+                cx(
+                  'group relative w-full flex items-center rounded-xl transition-all duration-150',
+                  'focus:outline-none focus-visible:ring-1 focus-visible:ring-sky-500/50',
+                  isDesktopExpanded ? 'px-3 py-2.5 gap-3' : 'px-0 py-2.5 justify-center',
+                  isActive
+                    ? 'bg-sky-500/[0.12] text-sky-400'
+                    : 'text-slate-500 hover:bg-slate-800/70 hover:text-slate-200'
+                )
+              }
+            >
+              {({ isActive }) => (
+                <>
+                  {isActive && (
+                    <span className="absolute left-0 inset-y-0 w-0.5 rounded-r-full bg-sky-500 my-2" />
+                  )}
+                  <item.icon
+                    className={cx(
+                      'w-[17px] h-[17px] shrink-0',
+                      !isDesktopExpanded && 'mx-auto'
+                    )}
+                  />
+                  {isDesktopExpanded && (
+                    <span className="hidden md:block text-[13px] font-medium truncate">
+                      {item.label}
+                    </span>
+                  )}
+                </>
+              )}
+            </NavLink>
+          ))}
         </nav>
 
         {/* Bottom */}
-        <div className="px-3 py-3 border-t border-slate-200 space-y-2">
+        <div className="border-t border-slate-800/60 px-2 py-3 space-y-0.5 shrink-0">
           {/* User */}
-          <div
-            className={cx(
-              'rounded-2xl px-2 py-2 flex items-center',
-              isDesktopExpanded ? 'justify-start gap-3' : 'justify-center'
-            )}
-          >
-            <div className="w-10 h-10 rounded-2xl bg-slate-100 flex items-center justify-center">
-              <User className="w-5 h-5 text-slate-700" />
+          <div className={cx('flex items-center px-2 py-2 rounded-xl', isDesktopExpanded ? 'gap-3' : 'justify-center')}>
+            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-sky-500 to-blue-700 flex items-center justify-center shrink-0">
+              <span className="text-[11px] font-bold text-white leading-none">{initials}</span>
             </div>
             {isDesktopExpanded && (
-              <div className="hidden md:block min-w-0">
-                <div className="text-sm font-semibold text-slate-900 truncate">{user?.name ?? '관리자'}</div>
-                <div className="text-xs text-slate-500 truncate">{user?.role ?? ''}</div>
+              <div className="hidden md:flex flex-col min-w-0">
+                <span className="text-[13px] font-semibold text-slate-200 truncate leading-none">
+                  {user?.name ?? user?.email?.split('@')[0] ?? '관리자'}
+                </span>
+                <span className="text-[11px] text-slate-500 truncate leading-none mt-0.5">
+                  {user?.role ?? '관리자'}
+                </span>
               </div>
             )}
           </div>
 
           {/* Logout */}
           <button
-            onClick={logout}
+            onClick={signOut}
+            title={!isDesktopExpanded ? '로그아웃' : undefined}
             className={cx(
-              'w-full rounded-2xl px-2 py-2 transition',
-              'text-slate-700 hover:bg-slate-100 hover:text-rose-700',
-              isDesktopExpanded ? 'flex items-center justify-start gap-3' : 'flex items-center justify-center'
+              'w-full flex items-center rounded-xl px-2 py-2.5 transition',
+              'text-slate-500 hover:bg-slate-800/70 hover:text-rose-400',
+              isDesktopExpanded ? 'gap-3' : 'justify-center'
             )}
           >
-            <div className="w-10 h-10 rounded-2xl flex items-center justify-center">
-              <LogOut className="w-5 h-5" />
-            </div>
-            {isDesktopExpanded && <div className="hidden md:block text-sm font-semibold">로그아웃</div>}
-            {/* ✅ 하단 툴팁 제거 */}
+            <LogOut className={cx('w-[17px] h-[17px] shrink-0', !isDesktopExpanded && 'mx-auto')} />
+            {isDesktopExpanded && (
+              <span className="hidden md:block text-[13px] font-medium">로그아웃</span>
+            )}
           </button>
 
           {/* Powered by */}
@@ -241,24 +205,30 @@ export const AdminLayout: React.FC = () => {
             href={MOYEON_LINK_URL}
             target="_blank"
             rel="noreferrer"
+            title={!isDesktopExpanded ? 'Powered by 모두의연구소' : undefined}
             className={cx(
-              'w-full rounded-2xl px-2 py-2 transition',
-              'text-slate-500 hover:bg-slate-100 hover:text-slate-700',
-              isDesktopExpanded ? 'flex items-center justify-start gap-3' : 'flex items-center justify-center'
+              'w-full flex items-center rounded-xl px-2 py-2 transition',
+              'text-slate-600 hover:bg-slate-800/60 hover:text-slate-400',
+              isDesktopExpanded ? 'gap-3' : 'justify-center'
             )}
           >
-            <div className="w-10 h-10 rounded-2xl flex items-center justify-center">
-              <img src={MOYEON_LOGO_URL} alt="모두의연구소" className="w-5 h-5 rounded" />
-            </div>
-            {isDesktopExpanded && <div className="hidden md:block text-xs font-semibold truncate">Powered by 모두의연구소</div>}
-            {/* ✅ 하단 툴팁 제거 */}
+            <img
+              src={MOYEON_LOGO_URL}
+              alt="모두의연구소"
+              className={cx('w-[17px] h-[17px] rounded shrink-0', !isDesktopExpanded && 'mx-auto')}
+            />
+            {isDesktopExpanded && (
+              <span className="hidden md:block text-[11px] text-slate-500 truncate">
+                Powered by 모두의연구소
+              </span>
+            )}
           </a>
         </div>
       </aside>
 
-      {/* Main */}
-      <main className="flex-1 min-h-screen p-4 md:p-8">
-        <div className="max-w-7xl mx-auto">
+      {/* Main content */}
+      <main className="flex-1 min-w-0 min-h-screen">
+        <div className="max-w-7xl mx-auto px-4 py-6 md:px-8 md:py-8">
           <Outlet />
         </div>
       </main>
@@ -266,10 +236,13 @@ export const AdminLayout: React.FC = () => {
       {/* Mobile overlay */}
       {isMobileMenuOpen && (
         <div
-          className="fixed inset-0 bg-black/40 z-30 md:hidden"
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-30 md:hidden"
           onClick={() => setIsMobileMenuOpen(false)}
         />
       )}
+
+      {/* 프로필 미설정 시 설정 모달 (관리자 영역에서만 표시) */}
+      <ProfileSetupModal open={profileIncomplete} />
     </div>
   );
 };

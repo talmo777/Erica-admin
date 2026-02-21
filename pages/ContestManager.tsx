@@ -10,6 +10,36 @@ import {
   ApiContestUpsertBody,
 } from '../services/api';
 import { mapApiContestToContest } from '../services/contestMapper';
+import { Trash2, Pencil, RefreshCw, Plus, ArrowLeft, UserCircle2, X } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+import { AdminProfile } from '../types';
+
+// ─── Publisher localStorage helpers ──────────────────────────────────────────
+
+const PUBLISHER_MAP_KEY = 'erica_contest_publishers_v1';
+
+function savePublisher(contestId: string, info: AdminProfile) {
+  try {
+    const raw = localStorage.getItem(PUBLISHER_MAP_KEY);
+    const map: Record<string, AdminProfile> = raw ? JSON.parse(raw) : {};
+    map[contestId] = info;
+    localStorage.setItem(PUBLISHER_MAP_KEY, JSON.stringify(map));
+  } catch (e) {
+    console.error('[publisher] savePublisher failed:', e);
+  }
+}
+
+function getPublisher(contestId: string): AdminProfile | null {
+  try {
+    const raw = localStorage.getItem(PUBLISHER_MAP_KEY);
+    if (!raw) return null;
+    const map: Record<string, AdminProfile> = JSON.parse(raw);
+    return map[contestId] ?? null;
+  } catch (e) {
+    console.error('[publisher] getPublisher failed:', e);
+    return null;
+  }
+}
 
 type View = 'list' | 'create';
 type EditModalState = { open: boolean; id: string | null };
@@ -54,8 +84,8 @@ function cx(...classes: Array<string | false | undefined | null>) {
 }
 
 const btnBase =
-  'inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition';
-const btnSecondary = btnBase + ' bg-white border border-slate-200 hover:bg-slate-50';
+  'inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition focus:outline-none focus:ring-2 focus:ring-sky-200 focus:ring-offset-1';
+const btnSecondary = btnBase + ' bg-white border border-slate-200 text-slate-700 hover:bg-slate-50';
 const btnPrimary = btnBase + ' bg-sky-600 text-white hover:bg-sky-700';
 const btnDanger =
   btnBase + ' bg-rose-600 text-white hover:bg-rose-700 disabled:opacity-40 disabled:hover:bg-rose-600';
@@ -171,14 +201,52 @@ function ConfirmModal({ state, onClose }: { state: ConfirmState; onClose: () => 
 function SectionCard({ title, subtitle, right, children }: any) {
   return (
     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-      <div className="px-6 py-5 border-b border-slate-200 flex items-start justify-between gap-4">
+      <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between gap-4">
         <div className="min-w-0">
-          <div className="text-lg font-bold text-slate-900">{title}</div>
-          {subtitle && <div className="text-sm text-slate-500 mt-1">{subtitle}</div>}
+          <div className="text-sm font-semibold text-slate-700">{title}</div>
+          {subtitle && <div className="text-xs text-slate-400 mt-0.5">{subtitle}</div>}
         </div>
         {right}
       </div>
       <div className="p-6">{children}</div>
+    </div>
+  );
+}
+
+function PublisherBadge({ contestId }: { contestId: string }) {
+  const [open, setOpen] = React.useState(false);
+  const info = getPublisher(contestId);
+  if (!info || !info.name) return null;
+
+  return (
+    <div className="relative inline-block">
+      <button
+        type="button"
+        onClick={(e) => { e.stopPropagation(); setOpen(v => !v); }}
+        className="text-[11px] font-medium text-sky-600 hover:text-sky-800 hover:underline flex items-center gap-1"
+      >
+        <UserCircle2 className="w-3 h-3" />
+        {info.name}
+      </button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
+          <div className="absolute right-0 top-6 z-50 bg-white rounded-xl border border-slate-200 shadow-xl p-4 w-56 text-left">
+            <div className="flex items-center justify-between mb-2">
+              <div className="text-sm font-bold text-slate-900">{info.name}</div>
+              <button type="button" onClick={() => setOpen(false)} className="text-slate-400 hover:text-slate-700">
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+            <div className="space-y-1.5 text-xs text-slate-600">
+              <div><span className="font-medium text-slate-500">직책</span> {info.role || '-'}</div>
+              <div><span className="font-medium text-slate-500">이메일</span> {info.email || '-'}</div>
+              <div><span className="font-medium text-slate-500">연락처</span> {info.contact || '-'}</div>
+            </div>
+            <p className="mt-3 text-[10px] text-slate-400">관리자 전용 정보 · 사용자 웹 비노출</p>
+          </div>
+        </>
+      )}
     </div>
   );
 }
@@ -194,6 +262,7 @@ function ContestForm({
   onCancel: () => void;
   onSaved: () => Promise<void>;
 }) {
+  const { profile } = useAuth();
   const [form, setForm] = useState<Contest>(initial);
   const [uploadFile, setUploadFile] = useState<File | null>(null);
 
@@ -238,8 +307,14 @@ function ContestForm({
 
       if (mode === 'edit') {
         await patchContest(form.id, body);
+        // Save publisher mapping for edited contest (update)
+        if (profile?.name) savePublisher(form.id, { name: profile.name, role: profile.role, contact: profile.contact, email: profile.email });
       } else {
-        await createContest(body);
+        const created = await createContest(body);
+        // `createContest` returns ApiContest with an `id` field per services/api.ts contract
+        if (profile?.name && created?.id) {
+          savePublisher(created.id, { name: profile.name, role: profile.role, contact: profile.contact, email: profile.email });
+        }
       }
 
       await onSaved();
@@ -450,6 +525,14 @@ function ContestForm({
       </div>
 
       <div className="pt-2 flex gap-2 justify-end">
+        {/* Publisher info (read-only) */}
+        {profile?.name && (
+          <div className="mr-auto flex items-center gap-2 text-xs text-slate-500 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2">
+            <UserCircle2 className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+            <span>게시자: <span className="font-medium text-slate-700">{profile.name}</span></span>
+            {profile.role && <span className="text-slate-400">· {profile.role}</span>}
+          </div>
+        )}
         <button onClick={onCancel} className={btnSecondary}>
           취소
         </button>
@@ -559,26 +642,29 @@ export const ContestManager: React.FC = () => {
   const allChecked = list.length > 0 && selectedIds.size === list.length;
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <div className="max-w-7xl mx-auto px-6 py-10 space-y-6">
+    <div className="space-y-6">
+      <div className="max-w-5xl mx-auto space-y-6">
         {/* Header */}
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-extrabold text-slate-900">공모전 게시/배포</h1>
-            <p className="text-slate-500 mt-1">목록 조회 · 신규 등록 · 수정 · 삭제</p>
+            <h1 className="text-2xl font-bold tracking-tight text-slate-900">공모전 게시/배포</h1>
+            <p className="text-sm text-slate-500 mt-1">목록 조회 · 신규 등록 · 수정 · 삭제</p>
           </div>
 
           {view === 'list' ? (
-            <div className="flex gap-2">
-              <button onClick={refresh} className={btnSecondary}>
+            <div className="flex gap-2 shrink-0">
+              <button onClick={refresh} className={cx(btnSecondary, 'gap-1.5')}>
+                <RefreshCw className="w-3.5 h-3.5" />
                 새로고침
               </button>
-              <button onClick={openCreate} className={btnPrimary}>
-                새 공모전 작성
+              <button onClick={openCreate} className={cx(btnPrimary, 'gap-1.5')}>
+                <Plus className="w-3.5 h-3.5" />
+                새 공모전
               </button>
             </div>
           ) : (
-            <button onClick={() => setView('list')} className={btnSecondary}>
+            <button onClick={() => setView('list')} className={cx(btnSecondary, 'gap-1.5')}>
+              <ArrowLeft className="w-3.5 h-3.5" />
               목록으로
             </button>
           )}
@@ -609,40 +695,63 @@ export const ContestManager: React.FC = () => {
             ) : list.length === 0 ? (
               <div className="text-slate-500">데이터가 없습니다.</div>
             ) : (
-              <div className="space-y-3">
+              <div className="space-y-2">
                 {list.map((c) => {
                   const checked = selectedIds.has(c.id);
                   const statusTone = c.status === ContestStatus.PUBLISHED ? 'sky' : c.status === ContestStatus.ARCHIVED ? 'rose' : 'slate';
+                  const dateRange = c.startDate || c.endDate
+                    ? [c.startDate, c.endDate].filter(Boolean).join(' ~ ')
+                    : null;
 
                   return (
                     <div
                       key={c.id}
                       className={cx(
-                        'rounded-2xl border border-slate-200 bg-white',
-                        'hover:shadow-sm hover:border-slate-300 transition',
-                        'px-4 py-4'
+                        'rounded-2xl border bg-white transition-all',
+                        'hover:shadow-sm hover:border-slate-300',
+                        checked ? 'border-sky-200 ring-1 ring-sky-100' : 'border-slate-200',
+                        'px-4 py-3.5'
                       )}
                     >
-                      <div className="grid grid-cols-[24px_1fr_auto] gap-3 items-start">
+                      <div className="flex items-center gap-3">
                         <input
                           type="checkbox"
                           checked={checked}
                           onChange={(e) => toggleSelect(c.id, e.target.checked)}
-                          className="mt-1"
+                          className="w-4 h-4 rounded border-slate-300 text-sky-600 focus:ring-sky-500 shrink-0"
                         />
 
-                        <button className="text-left min-w-0" onClick={() => openEdit(c.id)}>
-                          <div className="font-semibold text-slate-900 truncate">{c.title}</div>
-                          <div className="mt-2 flex flex-wrap gap-2">
+                        <button className="text-left min-w-0 flex-1" onClick={() => openEdit(c.id)}>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-semibold text-slate-900 text-sm truncate">{c.title}</span>
+                          </div>
+                          <div className="mt-1.5 flex flex-wrap gap-1.5 items-center">
                             <Chip>{c.category}</Chip>
                             <Chip tone={statusTone as any}>{c.status}</Chip>
                             {c.targets?.length ? <Chip tone="slate">대상 {c.targets.length}개</Chip> : null}
+                            {dateRange && (
+                              <span className="text-xs text-slate-400">{dateRange}</span>
+                            )}
+                            <PublisherBadge contestId={c.id} />
                           </div>
                         </button>
 
-                        <button onClick={() => askDeleteOne(c.id)} className="text-xs font-semibold text-rose-600 hover:underline">
-                          삭제
-                        </button>
+                        <div className="flex items-center gap-1 shrink-0">
+                          <button
+                            onClick={() => openEdit(c.id)}
+                            className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition"
+                            title="수정"
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => askDeleteOne(c.id)}
+                            className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:bg-rose-50 hover:text-rose-600 transition"
+                            title="삭제"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       </div>
                     </div>
                   );

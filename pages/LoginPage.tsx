@@ -6,6 +6,8 @@ import { HYU_LOGO_URL } from '../constants';
 export const LoginPage: React.FC = () => {
   const { signInWithGoogle, approval, loading, isAuthenticated } = useAuth();
   const navigate = useNavigate();
+  const [isPending, setIsPending] = React.useState(false);
+  const [loginError, setLoginError] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     if (!loading && isAuthenticated) {
@@ -13,6 +15,18 @@ export const LoginPage: React.FC = () => {
       else navigate('/access-denied', { replace: true });
     }
   }, [loading, isAuthenticated, approval]);
+
+  const handleSignIn = async () => {
+    if (isPending || loading) return;
+    setLoginError(null);
+    setIsPending(true);
+    try {
+      await signInWithGoogle();
+    } catch (e: any) {
+      setLoginError(e?.message ?? '로그인 중 오류가 발생했습니다.');
+      setIsPending(false);
+    }
+  };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-50 px-4">
@@ -26,16 +40,20 @@ export const LoginPage: React.FC = () => {
         </div>
 
         <button
-          onClick={() => signInWithGoogle()}
-          className="w-full rounded-xl bg-slate-900 text-white py-3 font-semibold hover:bg-slate-800 transition"
-          disabled={loading}
+          type="button"
+          onClick={handleSignIn}
+          className="block w-full rounded-xl bg-slate-900 text-white py-3 font-semibold hover:bg-slate-800 transition cursor-pointer disabled:opacity-60"
+          disabled={loading || isPending}
         >
-          Google로 로그인
+          {isPending ? '로그인 중...' : 'Google로 로그인'}
         </button>
 
+        {loginError && <div className="mt-2 text-sm text-rose-600">{loginError}</div>}
+
         <button
+          type="button"
           onClick={() => navigate('/request-access')}
-          className="w-full mt-3 rounded-xl border border-slate-200 bg-white text-slate-900 py-3 font-semibold hover:bg-slate-50 transition"
+          className="block w-full mt-3 rounded-xl border border-slate-200 bg-white text-slate-900 py-3 font-semibold hover:bg-slate-50 transition cursor-pointer"
         >
           승인요청
         </button>

@@ -3,15 +3,19 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 export const AuthCallbackPage: React.FC = () => {
-  const { refreshApproval } = useAuth();
+  const { approval, loading } = useAuth();
   const navigate = useNavigate();
+  const navigatedRef = React.useRef(false);
 
   React.useEffect(() => {
-    (async () => {
-      await refreshApproval();
+    if (loading || navigatedRef.current) return;
+    navigatedRef.current = true;
+    if (approval === 'APPROVED') {
       navigate('/admin', { replace: true });
-    })();
-  }, []);
+    } else {
+      navigate('/login', { replace: true });
+    }
+  }, [loading, approval]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-50">

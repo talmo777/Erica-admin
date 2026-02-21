@@ -42,42 +42,66 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const isAuthenticated = !!accessToken;
 
+  // Prevents parallel refreshApproval calls — second caller awaits the ongoing promise
+  const refreshPromiseRef = React.useRef<Promise<void> | null>(null);
+
   const refreshApproval = async () => {
-    requireBase();
-    const token = await getAccessToken();
-    setAccessToken(token);
-
-    if (!token) {
-      setApproval('UNAUTHORIZED');
-      setUser(null);
-      return;
+    if (refreshPromiseRef.current) {
+      return refreshPromiseRef.current;
     }
 
-    const res = await fetch(`${API_BASE}/api/admin/me`, {
-      method: 'GET',
-      headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' }
+    const run = async () => {
+      requireBase();
+      const token = await getAccessToken();
+      setAccessToken(token);
+
+      if (!token) {
+        setApproval('UNAUTHORIZED');
+        setUser(null);
+        return;
+      }
+
+      const controller = new AbortController();
+      const API_TIMEOUT_MS = 10000;
+      const timeout = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
+      let res: Response;
+      try {
+        res = await fetch(`${API_BASE}/api/admin/me`, {
+          method: 'GET',
+          headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
+          signal: controller.signal
+        });
+      } finally {
+        clearTimeout(timeout);
+      }
+
+      if (res.ok) {
+        const data = (await res.json()) as { ok: true; email: string; name?: string; role?: string };
+        setApproval('APPROVED');
+        setUser({ email: data.email, name: data.name ?? null, role: data.role ?? null });
+        return;
+      }
+
+      // 승인 안된 경우: 서버에서 status 내려줌
+      let payload: any = null;
+      try { payload = await res.json(); } catch {}
+      const status = String(payload?.status ?? '');
+
+      if (status === 'PENDING') setApproval('PENDING');
+      else if (status === 'REJECTED') setApproval('REJECTED');
+      else setApproval('UNAUTHORIZED');
+
+      // 세션은 있어도 관리자 접근 불가 상태
+      const { data: sessionData } = await supabase.auth.getUser();
+      const email = sessionData.user?.email ?? '';
+      setUser(email ? { email } : null);
+    };
+
+    const promise = run().finally(() => {
+      refreshPromiseRef.current = null;
     });
-
-    if (res.ok) {
-      const data = (await res.json()) as { ok: true; email: string; name?: string; role?: string };
-      setApproval('APPROVED');
-      setUser({ email: data.email, name: data.name ?? null, role: data.role ?? null });
-      return;
-    }
-
-    // 승인 안된 경우: 서버에서 status 내려줌
-    let payload: any = null;
-    try { payload = await res.json(); } catch {}
-    const status = String(payload?.status ?? '');
-
-    if (status === 'PENDING') setApproval('PENDING');
-    else if (status === 'REJECTED') setApproval('REJECTED');
-    else setApproval('UNAUTHORIZED');
-
-    // 세션은 있어도 관리자 접근 불가 상태
-    const { data: sessionData } = await supabase.auth.getUser();
-    const email = sessionData.user?.email ?? '';
-    setUser(email ? { email } : null);
+    refreshPromiseRef.current = promise;
+    return promise;
   };
 
   const signInWithGoogle = async () => {
@@ -107,7 +131,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     })();
 
     const { data: sub } = supabase.auth.onAuthStateChange(async () => {
-      setLoading(true);
+      // If a refresh is already in-flight, just wait for it instead of
+      // setting loading=true and starting a duplicate call
+      if (refreshPromiseRef.current) {
+        await refreshPromiseRef.current;
+        return;
+      }
+      if (mounted) setLoading(true);
       try {
         await refreshApproval();
       } finally {

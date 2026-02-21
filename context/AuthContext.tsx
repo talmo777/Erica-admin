@@ -50,6 +50,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const isAuthenticated = !!accessToken;
 
+  // Keeps latest approval value accessible inside the onAuthStateChange closure
+  // without needing to re-register the listener on every state change.
+  const approvalRef = React.useRef<ApprovalState>('UNKNOWN');
+  useEffect(() => { approvalRef.current = approval; }, [approval]);
+
   // Prevents parallel refreshApproval calls — second caller awaits the ongoing promise
   const refreshPromiseRef = React.useRef<Promise<void> | null>(null);
 
@@ -71,13 +76,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     const run = async () => {
-      if (!requireBase()) {
-        // API base not configured — treat as unauthorised (no throw)
-        setApproval('UNAUTHORIZED');
-        setUser(null);
-        return;
-      }
-
+      // ── Step 1: always get the token first so isAuthenticated is correct ──────
       const token = await getAccessToken();
       setAccessToken(token);
 
@@ -102,6 +101,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return;
       }
 
+      // ── Step 2: board API approval check ─────────────────────────────────────
+      if (!requireBase()) {
+        // API base not configured — user has a Supabase session but can't verify
+        setApproval('UNAUTHORIZED');
+        setUser(null);
+        return;
+      }
+
       const controller = new AbortController();
       const API_TIMEOUT_MS = 10000;
       const timeout = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
@@ -110,11 +117,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         res = await fetch(`${API_BASE}/api/admin/me`, {
           method: 'GET',
           headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
-          signal: controller.signal
+          signal: controller.signal,
         });
-      } finally {
+      } catch (fetchError) {
+        // Network error or timeout abort — set a definitive state so approval
+        // is never left as 'UNKNOWN' (which would confuse AuthCallbackPage).
         clearTimeout(timeout);
+        console.error('[auth] /api/admin/me request failed:', fetchError);
+        setApproval('UNAUTHORIZED');
+        setUser(null);
+        return;
       }
+      clearTimeout(timeout);
 
       if (res.ok) {
         const data = (await res.json()) as { ok: true; email: string; name?: string; role?: string };
@@ -174,13 +188,39 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     })();
 
-    const { data: sub } = supabase.auth.onAuthStateChange(async () => {
-      // If a refresh is already in-flight, just wait for it instead of
-      // setting loading=true and starting a duplicate call
+    const { data: sub } = supabase.auth.onAuthStateChange(async (event, session) => {
+      // ── If a refresh is already in-flight, just wait for it ─────────────────
       if (refreshPromiseRef.current) {
         try { await refreshPromiseRef.current; } catch { /* already logged */ }
         return;
       }
+
+      // ── Handle events that don't require a full API round-trip ───────────────
+      if (event === 'SIGNED_OUT') {
+        if (mounted) {
+          setAccessToken(null);
+          setApproval('UNAUTHORIZED');
+          setUser(null);
+          setProfile(null);
+          setLoading(false);
+        }
+        return;
+      }
+
+      if (event === 'TOKEN_REFRESHED') {
+        // Token silently refreshed — update stored token, no need to re-verify
+        if (mounted && session) setAccessToken(session.access_token);
+        return;
+      }
+
+      // ── SIGNED_IN / INITIAL_SESSION ──────────────────────────────────────────
+      // Supabase fires SIGNED_IN (via setTimeout) and INITIAL_SESSION after
+      // initialize() completes. If the initial refreshApproval() has already
+      // set a definitive state (anything other than 'UNKNOWN'), these events
+      // are redundant — skip them to prevent a double API call that can bounce
+      // the user off /admin.
+      if (approvalRef.current !== 'UNKNOWN') return;
+
       if (mounted) setLoading(true);
       try {
         await refreshApproval();

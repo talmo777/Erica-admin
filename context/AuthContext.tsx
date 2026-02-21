@@ -28,8 +28,12 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 const API_BASE_RAW = import.meta.env.VITE_BOARD_API_BASE_URL as string | undefined;
 const API_BASE = API_BASE_RAW?.replace(/\/+$/, '');
 
-function requireBase() {
-  if (!API_BASE) throw new Error('VITE_BOARD_API_BASE_URL is not set');
+function requireBase(): boolean {
+  if (!API_BASE) {
+    console.warn('[auth] VITE_BOARD_API_BASE_URL is not set — API calls will be skipped.');
+    return false;
+  }
+  return true;
 }
 
 async function getAccessToken(): Promise<string | null> {
@@ -67,7 +71,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     const run = async () => {
-      requireBase();
+      if (!requireBase()) {
+        // API base not configured — treat as unauthorised (no throw)
+        setApproval('UNAUTHORIZED');
+        setUser(null);
+        return;
+      }
+
       const token = await getAccessToken();
       setAccessToken(token);
 
@@ -157,6 +167,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     (async () => {
       try {
         await refreshApproval();
+      } catch (err) {
+        console.error('[auth] refreshApproval failed:', err);
       } finally {
         if (mounted) setLoading(false);
       }
@@ -166,12 +178,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // If a refresh is already in-flight, just wait for it instead of
       // setting loading=true and starting a duplicate call
       if (refreshPromiseRef.current) {
-        await refreshPromiseRef.current;
+        try { await refreshPromiseRef.current; } catch { /* already logged */ }
         return;
       }
       if (mounted) setLoading(true);
       try {
         await refreshApproval();
+      } catch (err) {
+        console.error('[auth] onAuthStateChange refreshApproval failed:', err);
       } finally {
         if (mounted) setLoading(false);
       }

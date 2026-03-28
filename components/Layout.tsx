@@ -44,7 +44,7 @@ const Tooltip: React.FC<{ show: boolean; text: string }> = ({ show, text }) => {
 };
 
 export const AdminLayout: React.FC = () => {
-  const { logout, user } = useAuth();
+  const { signOut, user } = useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
 
   // Desktop sidebar behavior
@@ -222,7 +222,7 @@ export const AdminLayout: React.FC = () => {
 
           {/* Logout */}
           <button
-            onClick={logout}
+            onClick={signOut}
             className={cx(
               'w-full rounded-2xl px-2 py-2 transition',
               'text-slate-700 hover:bg-slate-100 hover:text-rose-700',

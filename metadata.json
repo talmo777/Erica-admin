@@ -1,0 +1,5 @@
+{
+  "name": "administer",
+  "description": "한양대 ERICA 공모전 게시판 관리자 시스템 (MVP)",
+  "requestFramePermissions": []
+}

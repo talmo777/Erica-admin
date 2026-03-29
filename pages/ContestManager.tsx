@@ -732,7 +732,6 @@ export const ContestManager: React.FC = () => {
 
         {/* CONFIRM MODAL */}
         <ConfirmModal state={confirm} onClose={() => setConfirm({ open: false })} />
-      </div>
     </div>
   );
 };

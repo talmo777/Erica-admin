@@ -158,8 +158,8 @@ export const AdminLayout: React.FC = () => {
                     // 접힘 상태에서는 아이콘 중앙정렬이 핵심이라 padding 최소/일관 유지
                     isDesktopExpanded ? 'px-3 py-2' : 'px-2 py-2',
                     isActive
-                      ? 'bg-sky-50 text-sky-900 ring-1 ring-sky-200'
-                      : 'text-slate-700 hover:bg-slate-100 hover:text-slate-900'
+                      ? 'bg-sky-50 text-sky-700'
+                      : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
                   )
                 }
               >
@@ -177,7 +177,7 @@ export const AdminLayout: React.FC = () => {
                       <div
                         className={cx(
                           'w-10 h-10 rounded-2xl flex items-center justify-center',
-                          isActive ? 'bg-white shadow-sm ring-1 ring-slate-200' : 'bg-transparent'
+                          isActive ? 'bg-white shadow-sm' : 'bg-transparent'
                         )}
                       >
                         <item.icon className="w-5 h-5" />

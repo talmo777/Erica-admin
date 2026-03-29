@@ -157,8 +157,14 @@ function ConfirmModal({ state, onClose }: { state: ConfirmState; onClose: () => 
             </button>
             <button
               onClick={async () => {
-                await state.onConfirm();
-                onClose();
+                try {
+                  await state.onConfirm();
+                } catch (e: any) {
+                  console.error('작업 실패:', e);
+                  alert(e?.message ?? '작업 중 오류가 발생했습니다.');
+                } finally {
+                  onClose();
+                }
               }}
               className={state.danger ? btnDanger : btnPrimary}
             >
@@ -549,7 +555,7 @@ export const ContestManager: React.FC = () => {
       danger: true,
       onConfirm: async () => {
         await deleteContest(id);
-        await refresh();
+        try { await refresh(); } catch { /* ignore */ }
         setSelectedIds((prev) => {
           const next = new Set(prev);
           next.delete(id);
@@ -582,10 +588,12 @@ export const ContestManager: React.FC = () => {
             console.error(`삭제 실패: ${id}`, e);
           }
         }
-        await refresh();
+        try { await refresh(); } catch { /* ignore */ }
         setSelectedIds(new Set());
         if (errors.length > 0) {
           alert(`${ids.length - errors.length}건 삭제 완료, ${errors.length}건 실패`);
+        } else {
+          alert(`${ids.length}건 삭제 완료`);
         }
       },
     });

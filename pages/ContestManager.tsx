@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Send, RefreshCw, Plus, Trash2 } from 'lucide-react';
+import { Send, RefreshCw, Plus, Trash2, Download } from 'lucide-react';
 import { Contest, ContestCategory, ContestStatus, TARGET_OPTIONS } from '../types';
 import { extractContestInfo, AiExtractResult } from '../services/aiExtract';
 import {
@@ -8,6 +8,7 @@ import {
   patchContest,
   deleteContest,
   uploadPoster,
+  triggerCrawl,
   ApiContestUpsertBody,
 } from '../services/api';
 import { mapApiContestToContest } from '../services/contestMapper';
@@ -474,6 +475,7 @@ export const ContestManager: React.FC = () => {
   const [editModal, setEditModal] = useState<EditModalState>({ open: false, id: null });
   const [createSeed, setCreateSeed] = useState<Contest>(emptyContest);
   const [confirm, setConfirm] = useState<ConfirmState>({ open: false });
+  const [crawling, setCrawling] = useState(false);
 
   const selectedContest = useMemo(
     () => (editModal.id ? list.find((x) => x.id === editModal.id) ?? null : null),
@@ -493,6 +495,21 @@ export const ContestManager: React.FC = () => {
   useEffect(() => {
     refresh();
   }, []);
+
+  async function handleCrawl() {
+    setCrawling(true);
+    try {
+      const result = await triggerCrawl();
+      const count = result?.inserted ?? result?.count ?? 0;
+      alert(`크롤링 완료! ${count > 0 ? `${count}건 새로 수집됨` : '새로운 데이터 없음'}`);
+      await refresh();
+    } catch (e: any) {
+      console.error(e);
+      alert(e?.message ?? '크롤링 실패');
+    } finally {
+      setCrawling(false);
+    }
+  }
 
   function openCreate() {
     setCreateSeed(emptyContest);
@@ -592,6 +609,10 @@ export const ContestManager: React.FC = () => {
 
         {view === 'list' ? (
           <div className="flex gap-2">
+            <button onClick={handleCrawl} disabled={crawling} className={cx(btnSecondary, 'gap-1.5 disabled:opacity-50')}>
+              <Download className={cx('w-4 h-4', crawling && 'animate-bounce')} />
+              {crawling ? '수집 중…' : '정보 가져오기'}
+            </button>
             <button onClick={refresh} className={cx(btnSecondary, 'gap-1.5')}>
               <RefreshCw className="w-4 h-4" />
               새로고침

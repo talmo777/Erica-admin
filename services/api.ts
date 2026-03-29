@@ -153,3 +153,31 @@ export async function deleteContest(id: string): Promise<{ ok: boolean }> {
 
   return (await res.json()) as { ok: boolean };
 }
+
+/**
+ * 수동 크롤링 트리거: GET /api/cron/crawl
+ * Vercel cron과 동일한 엔드포인트를 수동으로 호출
+ */
+export async function triggerCrawl(): Promise<any> {
+  requireBase();
+
+  const cronSecret = import.meta.env.VITE_CRON_SECRET as string | undefined;
+
+  const headers: Record<string, string> = {
+    ...authHeaders(),
+  };
+  if (cronSecret) {
+    headers['authorization'] = `Bearer ${cronSecret}`;
+  }
+
+  const res = await fetch(`${API_BASE}/api/cron/crawl`, {
+    method: 'GET',
+    headers,
+  });
+
+  if (!res.ok) {
+    throw new Error(`크롤링 실패: ${await readError(res)}`);
+  }
+
+  return await res.json();
+}

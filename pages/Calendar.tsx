@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, CalendarDays, Clock, Eye, Filter } from 'lucide-react';
 import { Contest } from '../types';
 import ContestModal from '../components/ContestModal';
 import { getContests } from '../services/api';
@@ -230,16 +230,32 @@ const Calendar: React.FC = () => {
   const nextMonth = () => setCurrentDate((d) => new Date(d.getFullYear(), d.getMonth() + 1, 1));
 
   return (
-    <div className="max-w-6xl mx-auto p-6">
+    <div className="max-w-6xl mx-auto">
+      {/* 페이지 헤더 */}
+      <div className="mb-6">
+        <div className="flex items-center gap-3 mb-1">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-sky-500 to-indigo-500 flex items-center justify-center shadow-sm">
+            <CalendarDays className="w-5 h-5 text-white" />
+          </div>
+          <div>
+            <h1 className="text-xl font-bold text-slate-900">공모전 캘린더</h1>
+            <p className="text-xs text-slate-500">일정별로 공모전을 확인하세요</p>
+          </div>
+        </div>
+      </div>
+
       <div className="grid lg:grid-cols-[280px_1fr] gap-6">
         {/* LEFT PANEL */}
-        <aside className="space-y-6">
-          {/* 관심 분야 */}
-          <div className="bg-white rounded-xl border p-5">
-            <div className="text-sm font-semibold text-slate-800 mb-3">관심 분야</div>
-            <div className="space-y-2">
+        <aside className="space-y-5">
+          {/* 관심 분야 필터 */}
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+            <div className="px-5 py-3 border-b border-slate-100 flex items-center gap-2">
+              <Filter className="w-4 h-4 text-slate-400" />
+              <span className="text-sm font-semibold text-slate-800">관심 분야</span>
+            </div>
+            <div className="p-4 space-y-2.5">
               {AREAS.map((a) => (
-                <label key={a.key} className="flex items-center gap-3 text-sm text-slate-700 select-none">
+                <label key={a.key} className="flex items-center gap-3 text-sm text-slate-700 select-none cursor-pointer hover:text-slate-900 transition-colors">
                   <input
                     type="checkbox"
                     className="h-4 w-4 rounded border-slate-300 text-sky-600 focus:ring-sky-500"
@@ -250,9 +266,9 @@ const Calendar: React.FC = () => {
                 </label>
               ))}
             </div>
-            <div className="mt-3 flex gap-2">
+            <div className="px-4 pb-4 flex gap-2">
               <button
-                className="text-xs px-3 py-1.5 rounded-lg border bg-slate-50 hover:bg-slate-100"
+                className="flex-1 text-xs px-3 py-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 font-medium text-slate-600 transition"
                 onClick={() => {
                   const all: Record<AreaKey, boolean> = {
                     창업: true,
@@ -269,7 +285,7 @@ const Calendar: React.FC = () => {
                 전체 선택
               </button>
               <button
-                className="text-xs px-3 py-1.5 rounded-lg border bg-slate-50 hover:bg-slate-100"
+                className="flex-1 text-xs px-3 py-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 font-medium text-slate-600 transition"
                 onClick={() => {
                   const none: Record<AreaKey, boolean> = {
                     창업: false,
@@ -289,89 +305,112 @@ const Calendar: React.FC = () => {
           </div>
 
           {/* 마감 임박 */}
-          <div className="bg-white rounded-xl border p-5">
-            <div className="flex items-center justify-between mb-3">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+            <div className="px-5 py-3 border-b border-slate-100 flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <span className="text-sm font-semibold text-slate-800"> 오늘의 마감</span>
-                <span className="text-xs px-2 py-1 rounded-full bg-slate-100 text-slate-600">
-                  {today.getMonth() + 1}/{today.getDate()} 기준
-                </span>
+                <Clock className="w-4 h-4 text-amber-500" />
+                <span className="text-sm font-semibold text-slate-800">마감 임박</span>
               </div>
+              <span className="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 font-medium">
+                {today.getMonth() + 1}/{today.getDate()} 기준
+              </span>
             </div>
 
-            {upcomingDeadlines.length === 0 ? (
-              <div className="text-sm text-slate-500">30일 내 마감 공모전이 없습니다.</div>
-            ) : (
-              <div className="space-y-3">
-                {upcomingDeadlines.map(({ c, d, area }) => (
-                  <button
-                    key={c.id}
-                    onClick={() => openContest(c)}
-                    className="w-full text-left rounded-lg p-3 hover:bg-slate-50 transition-colors"
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs px-2 py-1 rounded-md bg-amber-50 text-amber-700 font-semibold">
-                            D-{d}
-                          </span>
-                          <span className="text-xs text-slate-500">{area}</span>
-                        </div>
-                        <div className="text-sm font-semibold text-slate-900 line-clamp-2">{c.title}</div>
-                        <div className="text-xs text-slate-500 line-clamp-1">{c.source || '출처 미상'}</div>
-                      </div>
-
-                      <span className="text-xs px-2 py-1 rounded-full ring-1 ring-inset whitespace-nowrap {''}">
-                        {/* 상태 배지 */}
-                        <span className={['px-2 py-1 rounded-full ring-1 ring-inset', getStatus(today, c).cls].join(' ')}>
+            <div className="p-4">
+              {upcomingDeadlines.length === 0 ? (
+                <div className="text-sm text-slate-400 text-center py-4">30일 내 마감 공모전이 없습니다.</div>
+              ) : (
+                <div className="space-y-2">
+                  {upcomingDeadlines.map(({ c, d, area }) => (
+                    <button
+                      key={c.id}
+                      onClick={() => openContest(c)}
+                      className="w-full text-left rounded-xl p-3 hover:bg-slate-50 transition-colors border border-transparent hover:border-slate-200"
+                    >
+                      <div className="flex items-center gap-2 mb-1.5">
+                        <span className="text-xs px-2 py-0.5 rounded-md bg-amber-50 text-amber-700 font-bold">
+                          D-{d}
+                        </span>
+                        <span className="text-xs text-slate-400">{area}</span>
+                        <span className={['ml-auto text-xs px-2 py-0.5 rounded-full ring-1 ring-inset', getStatus(today, c).cls].join(' ')}>
                           {getStatus(today, c).label}
                         </span>
-                      </span>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            )}
+                      </div>
+                      <div className="text-sm font-semibold text-slate-900 line-clamp-2 leading-snug">{c.title}</div>
+                      <div className="text-xs text-slate-400 mt-1 line-clamp-1">{c.source || '출처 미상'}</div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
 
           {/* 최근 본 공모전 */}
-          <div className="bg-white rounded-xl border p-5">
-            <div className="text-sm font-semibold text-slate-800 mb-3">최근 본 공모전</div>
-            {recent.length === 0 ? (
-              <div className="text-sm text-slate-500">아직 없음</div>
-            ) : (
-              <div className="space-y-2">
-                {recent.slice(0, 6).map((c) => (
-                  <button
-                    key={c.id}
-                    onClick={() => openContest(c)}
-                    className="w-full text-left rounded-lg px-3 py-2 hover:bg-slate-50"
-                  >
-                    <div className="text-sm text-slate-800 line-clamp-1">{c.title}</div>
-                    <div className="text-xs text-slate-500 mt-0.5">
-                      {c.endDate ? `마감: ${c.endDate}` : '마감일 없음'}
-                    </div>
-                  </button>
-                ))}
-              </div>
-            )}
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+            <div className="px-5 py-3 border-b border-slate-100 flex items-center gap-2">
+              <Eye className="w-4 h-4 text-slate-400" />
+              <span className="text-sm font-semibold text-slate-800">최근 본 공모전</span>
+            </div>
+            <div className="p-4">
+              {recent.length === 0 ? (
+                <div className="text-sm text-slate-400 text-center py-4">아직 없음</div>
+              ) : (
+                <div className="space-y-1">
+                  {recent.slice(0, 6).map((c) => (
+                    <button
+                      key={c.id}
+                      onClick={() => openContest(c)}
+                      className="w-full text-left rounded-lg px-3 py-2.5 hover:bg-slate-50 transition-colors"
+                    >
+                      <div className="text-sm text-slate-800 font-medium line-clamp-1">{c.title}</div>
+                      <div className="text-xs text-slate-400 mt-0.5">
+                        {c.endDate ? `마감: ${c.endDate}` : '마감일 없음'}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </aside>
 
-        {/* RIGHT: CALENDAR (기존 UI 유지) */}
-        <section className="bg-white rounded-xl border p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h1 className="text-2xl font-bold text-gray-900">캘린더</h1>
-            <div className="flex items-center gap-3">
-              <button onClick={prevMonth} className="p-2 rounded-lg border hover:bg-gray-50" aria-label="prev month">
-                <ChevronLeft className="w-5 h-5" />
-              </button>
-              <div className="font-semibold text-lg w-32 text-center">{monthLabel}</div>
-              <button onClick={nextMonth} className="p-2 rounded-lg border hover:bg-gray-50" aria-label="next month">
-                <ChevronRight className="w-5 h-5" />
-              </button>
+        {/* RIGHT: CALENDAR */}
+        <section className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+          {/* 월 네비게이션 툴바 */}
+          <div className="px-6 py-4 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setCurrentDate(new Date())}
+                  className="text-xs px-3 py-1.5 rounded-lg bg-sky-50 text-sky-700 font-semibold hover:bg-sky-100 transition"
+                >
+                  오늘
+                </button>
+              </div>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={prevMonth}
+                  className="w-9 h-9 rounded-xl hover:bg-slate-100 flex items-center justify-center transition"
+                  aria-label="prev month"
+                >
+                  <ChevronLeft className="w-5 h-5 text-slate-600" />
+                </button>
+                <div className="font-bold text-lg text-slate-900 w-36 text-center tracking-tight">{monthLabel}</div>
+                <button
+                  onClick={nextMonth}
+                  className="w-9 h-9 rounded-xl hover:bg-slate-100 flex items-center justify-center transition"
+                  aria-label="next month"
+                >
+                  <ChevronRight className="w-5 h-5 text-slate-600" />
+                </button>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-slate-400 font-medium">{filteredContests.length}개 공모전</span>
+              </div>
             </div>
           </div>
+
+          <div className="p-5">
 
           <div className="grid grid-cols-7 gap-px bg-gray-200 rounded-lg overflow-hidden">
             {['일', '월', '화', '수', '목', '금', '토'].map((day, idx) => (
@@ -429,10 +468,12 @@ const Calendar: React.FC = () => {
             })}
           </div>
 
-          <div className="mt-4 text-xs text-slate-500">
-            * 색상: <span className="px-2 py-0.5 rounded ring-1 ring-inset bg-emerald-50 text-emerald-700 ring-emerald-200">신청 시작</span>{' '}
-            <span className="px-2 py-0.5 rounded ring-1 ring-inset bg-sky-50 text-sky-700 ring-sky-200">접수 중</span>{' '}
-            <span className="px-2 py-0.5 rounded ring-1 ring-inset bg-rose-50 text-rose-700 ring-rose-200">신청 마감</span>
+          <div className="mt-4 flex items-center gap-3 text-xs text-slate-400">
+            <span className="font-medium">범례:</span>
+            <span className="inline-flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-emerald-400" />신청 시작</span>
+            <span className="inline-flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-sky-400" />접수 중</span>
+            <span className="inline-flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-rose-400" />신청 마감</span>
+          </div>
           </div>
         </section>
       </div>

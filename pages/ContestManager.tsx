@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { Send, RefreshCw, Plus, Trash2 } from 'lucide-react';
 import { Contest, ContestCategory, ContestStatus, TARGET_OPTIONS } from '../types';
 import { extractContestInfo, AiExtractResult } from '../services/aiExtract';
 import {
@@ -543,7 +544,10 @@ export const ContestManager: React.FC = () => {
 
   function askDeleteSelected() {
     const ids = Array.from(selectedIds);
-    if (ids.length === 0) return;
+    if (ids.length === 0) {
+      alert('삭제할 항목을 선택하세요.');
+      return;
+    }
 
     setConfirm({
       open: true,
@@ -552,9 +556,20 @@ export const ContestManager: React.FC = () => {
       confirmText: '선택 삭제',
       danger: true,
       onConfirm: async () => {
-        for (const id of ids) await deleteContest(id as string);
+        const errors: string[] = [];
+        for (const id of ids) {
+          try {
+            await deleteContest(id);
+          } catch (e: any) {
+            errors.push(id);
+            console.error(`삭제 실패: ${id}`, e);
+          }
+        }
         await refresh();
         setSelectedIds(new Set());
+        if (errors.length > 0) {
+          alert(`${ids.length - errors.length}건 삭제 완료, ${errors.length}건 실패`);
+        }
       },
     });
   }
@@ -562,98 +577,119 @@ export const ContestManager: React.FC = () => {
   const allChecked = list.length > 0 && selectedIds.size === list.length;
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <div className="max-w-7xl mx-auto px-6 py-10 space-y-6">
-        {/* Header */}
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-extrabold text-slate-900">공모전 게시/배포</h1>
-            <p className="text-slate-500 mt-1">목록 조회 · 신규 등록 · 수정 · 삭제</p>
+    <div className="max-w-7xl mx-auto space-y-6">
+      {/* 페이지 헤더 */}
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center shadow-sm">
+            <Send className="w-5 h-5 text-white" />
           </div>
-
-          {view === 'list' ? (
-            <div className="flex gap-2">
-              <button onClick={refresh} className={btnSecondary}>
-                새로고침
-              </button>
-              <button onClick={openCreate} className={btnPrimary}>
-                새 공모전 작성
-              </button>
-            </div>
-          ) : (
-            <button onClick={() => setView('list')} className={btnSecondary}>
-              목록으로
-            </button>
-          )}
+          <div>
+            <h1 className="text-xl font-bold text-slate-900">공모전 게시/배포</h1>
+            <p className="text-xs text-slate-500">목록 조회 · 신규 등록 · 수정 · 삭제</p>
+          </div>
         </div>
 
-        {/* LIST VIEW */}
-        {view === 'list' && (
-          <SectionCard
-            title="게시 목록"
-            subtitle="목록을 클릭하면 팝업에서 바로 수정할 수 있습니다."
-            right={
-              <div className="flex items-center gap-2">
-                <label className="inline-flex items-center gap-2 text-sm text-slate-700">
-                  <input type="checkbox" checked={allChecked} onChange={(e) => toggleSelectAll(e.target.checked)} />
-                  전체 선택
-                </label>
-                <div className="text-sm text-slate-500">
-                  선택 <span className="font-bold text-slate-900">{selectedIds.size}</span> / {list.length}
-                </div>
-                <button disabled={selectedIds.size === 0} onClick={askDeleteSelected} className={btnDanger}>
-                  선택 삭제
-                </button>
-              </div>
-            }
-          >
-            {loading ? (
-              <div className="text-slate-500">불러오는 중…</div>
-            ) : list.length === 0 ? (
-              <div className="text-slate-500">데이터가 없습니다.</div>
-            ) : (
-              <div className="space-y-3">
-                {list.map((c) => {
-                  const checked = selectedIds.has(c.id);
-                  const statusTone = c.status === ContestStatus.PUBLISHED ? 'sky' : c.status === ContestStatus.ARCHIVED ? 'rose' : 'slate';
-
-                  return (
-                    <div
-                      key={c.id}
-                      className={cx(
-                        'rounded-2xl border border-slate-200 bg-white',
-                        'hover:shadow-sm hover:border-slate-300 transition',
-                        'px-4 py-4'
-                      )}
-                    >
-                      <div className="grid grid-cols-[24px_1fr_auto] gap-3 items-start">
-                        <input
-                          type="checkbox"
-                          checked={checked}
-                          onChange={(e) => toggleSelect(c.id, e.target.checked)}
-                          className="mt-1"
-                        />
-
-                        <button className="text-left min-w-0" onClick={() => openEdit(c.id)}>
-                          <div className="font-semibold text-slate-900 truncate">{c.title}</div>
-                          <div className="mt-2 flex flex-wrap gap-2">
-                            <Chip>{c.category}</Chip>
-                            <Chip tone={statusTone as any}>{c.status}</Chip>
-                            {c.targets?.length ? <Chip tone="slate">대상 {c.targets.length}개</Chip> : null}
-                          </div>
-                        </button>
-
-                        <button onClick={() => askDeleteOne(c.id)} className="text-xs font-semibold text-rose-600 hover:underline">
-                          삭제
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </SectionCard>
+        {view === 'list' ? (
+          <div className="flex gap-2">
+            <button onClick={refresh} className={cx(btnSecondary, 'gap-1.5')}>
+              <RefreshCw className="w-4 h-4" />
+              새로고침
+            </button>
+            <button onClick={openCreate} className={cx(btnPrimary, 'gap-1.5')}>
+              <Plus className="w-4 h-4" />
+              새 공모전
+            </button>
+          </div>
+        ) : (
+          <button onClick={() => setView('list')} className={btnSecondary}>
+            목록으로
+          </button>
         )}
+      </div>
+
+      {/* LIST VIEW */}
+      {view === 'list' && (
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+          {/* 툴바 */}
+          <div className="px-5 py-3 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <label className="inline-flex items-center gap-2 text-sm text-slate-600 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={allChecked}
+                  onChange={(e) => toggleSelectAll(e.target.checked)}
+                  className="h-4 w-4 rounded border-slate-300 text-sky-600 focus:ring-sky-500"
+                />
+                전체 선택
+              </label>
+              <span className="text-xs text-slate-400">
+                {selectedIds.size > 0 ? (
+                  <span className="text-sky-600 font-semibold">{selectedIds.size}개 선택됨</span>
+                ) : (
+                  `총 ${list.length}개`
+                )}
+              </span>
+            </div>
+            {selectedIds.size > 0 && (
+              <button onClick={askDeleteSelected} className={cx(btnDanger, 'text-xs px-3 py-1.5 gap-1.5')}>
+                <Trash2 className="w-3.5 h-3.5" />
+                선택 삭제 ({selectedIds.size})
+              </button>
+            )}
+          </div>
+
+          {/* 리스트 */}
+          <div className="divide-y divide-slate-100">
+            {loading ? (
+              <div className="px-6 py-12 text-center text-slate-400">불러오는 중…</div>
+            ) : list.length === 0 ? (
+              <div className="px-6 py-12 text-center text-slate-400">데이터가 없습니다.</div>
+            ) : (
+              list.map((c) => {
+                const checked = selectedIds.has(c.id);
+                const statusTone = c.status === ContestStatus.PUBLISHED ? 'sky' : c.status === ContestStatus.ARCHIVED ? 'rose' : 'slate';
+
+                return (
+                  <div
+                    key={c.id}
+                    className={cx(
+                      'px-5 py-4 flex items-center gap-4 transition-colors',
+                      'hover:bg-slate-50',
+                      checked && 'bg-sky-50/50'
+                    )}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={(e) => toggleSelect(c.id, e.target.checked)}
+                      className="h-4 w-4 rounded border-slate-300 text-sky-600 focus:ring-sky-500 shrink-0"
+                    />
+
+                    <button className="flex-1 text-left min-w-0" onClick={() => openEdit(c.id)}>
+                      <div className="font-semibold text-slate-900 truncate">{c.title}</div>
+                      <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                        <Chip>{c.category}</Chip>
+                        <Chip tone={statusTone as any}>{c.status}</Chip>
+                        {c.targets?.length ? <Chip tone="slate">대상 {c.targets.length}개</Chip> : null}
+                        {c.endDate && <span className="text-xs text-slate-400">마감: {c.endDate}</span>}
+                      </div>
+                    </button>
+
+                    <button
+                      onClick={() => askDeleteOne(c.id)}
+                      className="shrink-0 w-8 h-8 rounded-lg hover:bg-rose-50 flex items-center justify-center text-slate-400 hover:text-rose-600 transition"
+                      title="삭제"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+      )}
 
         {/* CREATE VIEW */}
         {view === 'create' && (

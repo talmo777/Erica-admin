@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Send, RefreshCw, Plus, Trash2, Download } from 'lucide-react';
+import { Send, RefreshCw, Plus, Trash2, Download, Image, ImageOff } from 'lucide-react';
 import { Contest, ContestCategory, ContestStatus, TARGET_OPTIONS } from '../types';
 import { extractContestInfo, AiExtractResult } from '../services/aiExtract';
 import {
@@ -695,11 +695,25 @@ export const ContestManager: React.FC = () => {
                       className="h-4 w-4 rounded border-slate-300 text-sky-600 focus:ring-sky-500 shrink-0"
                     />
 
+                    {/* 포스터 썸네일 or 상태 */}
+                    <div className="shrink-0 w-10 h-10 rounded-lg overflow-hidden bg-slate-100 flex items-center justify-center">
+                      {c.imageUrl ? (
+                        <img src={c.imageUrl} alt="" className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; (e.target as HTMLImageElement).nextElementSibling as any && ((e.target as HTMLImageElement).parentElement!.innerHTML = '<span class="text-slate-300"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="1" y1="1" x2="23" y2="23"/><path d="M21 15V5a2 2 0 0 0-2-2H5"/><path d="m2 2 20 20"/></svg></span>'); }} />
+                      ) : (
+                        <ImageOff className="w-4 h-4 text-slate-300" />
+                      )}
+                    </div>
+
                     <button className="flex-1 text-left min-w-0" onClick={() => openEdit(c.id)}>
                       <div className="font-semibold text-slate-900 truncate">{c.title}</div>
                       <div className="mt-1.5 flex flex-wrap items-center gap-2">
                         <Chip>{c.category}</Chip>
                         <Chip tone={statusTone as any}>{c.status}</Chip>
+                        {c.imageUrl ? (
+                          <span className="inline-flex items-center gap-1 text-xs text-emerald-600"><Image className="w-3 h-3" />포스터</span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 text-xs text-slate-400"><ImageOff className="w-3 h-3" />포스터 없음</span>
+                        )}
                         {c.targets?.length ? <Chip tone="slate">대상 {c.targets.length}개</Chip> : null}
                         {c.endDate && <span className="text-xs text-slate-400">마감: {c.endDate}</span>}
                       </div>

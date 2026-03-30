@@ -153,37 +153,35 @@ export const AdminLayout: React.FC = () => {
                 onClick={() => setIsMobileMenuOpen(false)}
                 className={({ isActive }) =>
                   cx(
-                    'group relative w-full rounded-2xl transition-all duration-150',
+                    'group relative w-full transition-all duration-150',
                     'focus:outline-none',
-                    // 접힘 상태에서는 아이콘 중앙정렬이 핵심이라 padding 최소/일관 유지
-                    isDesktopExpanded ? 'px-3 py-2' : 'px-2 py-2',
+                    isDesktopExpanded ? 'px-2 py-1 rounded-xl' : 'py-1 flex justify-center',
                     isActive
-                      ? 'bg-sky-50 text-sky-700'
-                      : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                      ? 'text-sky-700'
+                      : 'text-slate-500 hover:text-slate-900'
                   )
                 }
               >
                 {({ isActive }) => (
                   <>
-                    {/* ✅ 파란 세로 바(Active indicator) 제거 */}
-
                     <div
                       className={cx(
                         'flex items-center',
-                        isDesktopExpanded ? 'justify-start gap-3' : 'justify-center'
+                        isDesktopExpanded ? 'justify-start gap-3 px-2 py-2 rounded-xl' : 'justify-center',
+                        isDesktopExpanded && isActive && 'bg-sky-50',
+                        isDesktopExpanded && !isActive && 'hover:bg-slate-50'
                       )}
                     >
-                      {/* Icon box: 항상 동일 크기/중앙 */}
                       <div
                         className={cx(
-                          'w-10 h-10 rounded-2xl flex items-center justify-center',
-                          isActive ? 'bg-white shadow-sm' : 'bg-transparent'
+                          'w-10 h-10 rounded-xl flex items-center justify-center',
+                          !isDesktopExpanded && isActive ? 'bg-sky-50 text-sky-700' : '',
+                          !isDesktopExpanded && !isActive ? 'hover:bg-slate-100' : ''
                         )}
                       >
                         <item.icon className="w-5 h-5" />
                       </div>
 
-                      {/* Label (expanded only) */}
                       {isDesktopExpanded && (
                         <div className="hidden md:block min-w-0">
                           <div className="text-sm font-semibold truncate">{item.label}</div>
@@ -191,7 +189,6 @@ export const AdminLayout: React.FC = () => {
                       )}
                     </div>
 
-                    {/* Tooltip (collapsed only) */}
                     <Tooltip show={!isDesktopExpanded} text={item.label} />
                   </>
                 )}

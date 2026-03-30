@@ -173,11 +173,7 @@ export const AdminLayout: React.FC = () => {
                       )}
                     >
                       <div
-                        className={cx(
-                          'w-10 h-10 rounded-xl flex items-center justify-center',
-                          !isDesktopExpanded && isActive ? 'bg-sky-50 text-sky-700' : '',
-                          !isDesktopExpanded && !isActive ? 'hover:bg-slate-100' : ''
-                        )}
+                        className="w-10 h-10 rounded-xl flex items-center justify-center"
                       >
                         <item.icon className="w-5 h-5" />
                       </div>

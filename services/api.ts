@@ -170,23 +170,32 @@ export async function deleteContest(id: string): Promise<{ ok: boolean }> {
 export async function triggerCrawl(): Promise<any> {
   requireBase();
 
-  const cronSecret = import.meta.env.VITE_CRON_SECRET as string | undefined;
-
   const headers: Record<string, string> = {
     ...authHeaders(),
   };
-  if (cronSecret) {
-    headers['authorization'] = `Bearer ${cronSecret}`;
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 90_000); // 90초 타임아웃
+
+  try {
+    const res = await fetch(`${API_BASE}/api/cron/crawl`, {
+      method: 'GET',
+      headers,
+      signal: controller.signal,
+    });
+
+    if (!res.ok) {
+      const body = await res.text().catch(() => '');
+      throw new Error(`크롤링 실패 (HTTP ${res.status}): ${body}`);
+    }
+
+    return await res.json();
+  } catch (e: any) {
+    if (e.name === 'AbortError') {
+      throw new Error('크롤링 시간 초과 (90초). 서버에서 처리 중일 수 있습니다.');
+    }
+    throw e;
+  } finally {
+    clearTimeout(timeout);
   }
-
-  const res = await fetch(`${API_BASE}/api/cron/crawl`, {
-    method: 'GET',
-    headers,
-  });
-
-  if (!res.ok) {
-    throw new Error(`크롤링 실패: ${await readError(res)}`);
-  }
-
-  return await res.json();
 }

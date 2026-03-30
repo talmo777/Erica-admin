@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '../services/supabaseClient';
+import { setApiBearerToken } from '../services/api';
 
 type ApprovalState = 'UNKNOWN' | 'APPROVED' | 'PENDING' | 'REJECTED' | 'UNAUTHORIZED';
 
@@ -103,6 +104,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setApproval('UNAUTHORIZED');
     setUser(null);
   };
+
+  // accessToken이 바뀌면 api 모듈에 주입
+  useEffect(() => {
+    setApiBearerToken(accessToken);
+  }, [accessToken]);
 
   useEffect(() => {
     let mounted = true;

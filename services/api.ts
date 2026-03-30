@@ -40,8 +40,17 @@ function requireBase() {
   if (!API_BASE) throw new Error('VITE_BOARD_API_BASE_URL is not set');
 }
 
+// Supabase Bearer 토큰을 외부에서 주입
+let _bearerToken: string | null = null;
+export function setApiBearerToken(token: string | null) {
+  _bearerToken = token;
+}
+
 function authHeaders(): Record<string, string> {
-  return ADMIN_TOKEN ? { 'x-admin-token': ADMIN_TOKEN } : {};
+  const headers: Record<string, string> = {};
+  if (ADMIN_TOKEN) headers['x-admin-token'] = ADMIN_TOKEN;
+  if (_bearerToken) headers['authorization'] = `Bearer ${_bearerToken}`;
+  return headers;
 }
 
 async function readError(res: Response) {

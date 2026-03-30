@@ -142,34 +142,47 @@ function Modal({
 }
 
 function ConfirmModal({ state, onClose }: { state: ConfirmState; onClose: () => void }) {
+  const [processing, setProcessing] = useState(false);
   if (!state.open) return null;
   return (
     <div className="fixed inset-0 z-50">
-      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/40" onClick={processing ? undefined : onClose} />
       <div className="absolute inset-0 flex items-center justify-center p-4">
         <div className="w-full max-w-md bg-white rounded-2xl shadow-xl border overflow-hidden">
           <div className="px-6 py-4 border-b">
             <div className="font-semibold text-slate-900">{state.title}</div>
           </div>
-          <div className="px-6 py-5 text-sm text-slate-700 whitespace-pre-wrap">{state.message}</div>
+          <div className="px-6 py-5 text-sm text-slate-700 whitespace-pre-wrap">
+            {processing ? (
+              <div className="flex items-center gap-3">
+                <div className="w-5 h-5 border-2 border-slate-300 border-t-sky-600 rounded-full animate-spin" />
+                <span>처리 중입니다...</span>
+              </div>
+            ) : (
+              state.message
+            )}
+          </div>
           <div className="px-6 py-4 border-t flex gap-2 justify-end">
-            <button onClick={onClose} className={btnSecondary}>
+            <button onClick={onClose} disabled={processing} className={cx(btnSecondary, 'disabled:opacity-40')}>
               취소
             </button>
             <button
+              disabled={processing}
               onClick={async () => {
+                setProcessing(true);
                 try {
                   await state.onConfirm();
                 } catch (e: any) {
                   console.error('작업 실패:', e);
                   alert(e?.message ?? '작업 중 오류가 발생했습니다.');
                 } finally {
+                  setProcessing(false);
                   onClose();
                 }
               }}
-              className={state.danger ? btnDanger : btnPrimary}
+              className={cx(state.danger ? btnDanger : btnPrimary, 'disabled:opacity-40')}
             >
-              {state.confirmText ?? '확인'}
+              {processing ? '처리 중…' : (state.confirmText ?? '확인')}
             </button>
           </div>
         </div>

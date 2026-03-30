@@ -199,3 +199,28 @@ export async function triggerCrawl(): Promise<any> {
     clearTimeout(timeout);
   }
 }
+
+/**
+ * URL에서 상세 정보 추출: GET /api/v1/extract-url?url=...
+ * 포스터, 설명, 마감일, 시작일을 추출
+ */
+export async function extractFromUrlApi(url: string): Promise<{
+  posterUrl: string | null;
+  description: string | null;
+  endDate: string | null;
+  startDate: string | null;
+}> {
+  requireBase();
+
+  const res = await fetch(
+    `${API_BASE}/api/v1/extract-url?url=${encodeURIComponent(url)}`,
+    { method: 'GET', headers: authHeaders() }
+  );
+
+  if (!res.ok) {
+    const body = await res.text().catch(() => '');
+    throw new Error(`추출 실패 (HTTP ${res.status}): ${body}`);
+  }
+
+  return await res.json();
+}

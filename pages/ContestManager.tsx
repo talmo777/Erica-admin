@@ -9,6 +9,7 @@ import {
   deleteContest,
   uploadPoster,
   triggerCrawl,
+  extractFromUrlApi,
   ApiContestUpsertBody,
 } from '../services/api';
 import { mapApiContestToContest } from '../services/contestMapper';
@@ -260,35 +261,57 @@ function ContestForm({
     }
   }
 
-  // 포스터 이미지 파일을 AI로 분석
+  // 포스터 이미지 파일을 AI로 분석 또는 URL에서 추출
   async function runAiExtract() {
-    if (!uploadFile) return alert('포스터 이미지를 먼저 업로드하세요.');
     setAiLoading(true);
     setAiResult(null);
     setAiDraft(null);
     try {
-      const res = await extractContestInfo(uploadFile);
-      setAiResult(res);
+      if (uploadFile) {
+        // 포스터 파일이 있으면 AI 이미지 분석
+        const res = await extractContestInfo(uploadFile);
+        setAiResult(res);
 
-      const draft: AiDraft = {
-        titleSummary: res.titleSummary ?? '',
-        organizer: res.organizer ?? '',
-        target: res.target ?? '',
-        scheduleStart: res.scheduleStart ?? '',
-        scheduleEnd: res.scheduleEnd ?? '',
-        body: res.description ?? '',
-      };
-      setAiDraft(draft);
+        const draft: AiDraft = {
+          titleSummary: res.titleSummary ?? '',
+          organizer: res.organizer ?? '',
+          target: res.target ?? '',
+          scheduleStart: res.scheduleStart ?? '',
+          scheduleEnd: res.scheduleEnd ?? '',
+          body: res.description ?? '',
+        };
+        setAiDraft(draft);
 
-      setForm((prev) => ({
-        ...prev,
-        title: res.titleSummary || prev.title,
-        startDate: res.scheduleStart || prev.startDate,
-        endDate: res.scheduleEnd || prev.endDate,
-      }));
+        setForm((prev) => ({
+          ...prev,
+          title: res.titleSummary || prev.title,
+          startDate: res.scheduleStart || prev.startDate,
+          endDate: res.scheduleEnd || prev.endDate,
+        }));
+      } else if (aiUrl.trim()) {
+        // URL만 있으면 웹페이지에서 추출
+        const res = await extractFromUrlApi(aiUrl.trim());
+
+        setForm((prev) => ({
+          ...prev,
+          imageUrl: res.posterUrl || prev.imageUrl,
+          description: res.description || prev.description,
+          startDate: res.startDate || prev.startDate,
+          endDate: res.endDate || prev.endDate,
+        }));
+
+        const summary = [
+          res.posterUrl ? '포스터 추출됨' : '포스터 없음',
+          res.description ? `설명 ${res.description.length}자` : '설명 없음',
+          res.endDate ? `마감일: ${res.endDate}` : '',
+        ].filter(Boolean).join(', ');
+        alert(`원문 추출 완료: ${summary}`);
+      } else {
+        alert('원문 URL을 입력하거나 포스터 이미지를 업로드하세요.');
+      }
     } catch (e: any) {
       console.error(e);
-      alert(e?.message ?? 'AI 추출 실패');
+      alert(e?.message ?? '추출 실패');
     } finally {
       setAiLoading(false);
     }
@@ -314,7 +337,7 @@ function ContestForm({
             className="flex-1 px-3 py-2 rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-sky-200"
           />
           <button onClick={runAiExtract} disabled={aiLoading} className={cx(btnPrimary, 'disabled:opacity-50')}>
-            {aiLoading ? '분석중…' : 'AI 추출'}
+            {aiLoading ? '추출중…' : uploadFile ? 'AI 추출' : '원문 추출'}
           </button>
         </div>
 

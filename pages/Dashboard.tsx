@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { getContests, ApiContest } from '../services/api';
+import { getContests, triggerCrawl, ApiContest } from '../services/api';
 import {
   BarChart,
   Bar,
@@ -23,6 +23,9 @@ import {
   CalendarDays,
   LayoutGrid,
   Layers,
+  RefreshCw,
+  Activity,
+  ExternalLink,
 } from 'lucide-react';
 
 /* ------------------------------------------------------------------ */
@@ -180,24 +183,85 @@ function daysUntil(dateStr: string | null): number | null {
 /* ------------------------------------------------------------------ */
 /*  메인 대시보드                                                        */
 /* ------------------------------------------------------------------ */
+type CrawlResult =
+  | { status: 'idle' }
+  | { status: 'loading' }
+  | { status: 'ok'; collected: number; inserted: number }
+  | { status: 'error'; message: string };
+
 export const Dashboard: React.FC = () => {
   const [contests, setContests] = useState<ApiContest[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [crawlResult, setCrawlResult] = useState<CrawlResult>({ status: 'idle' });
+
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      // published + draft 모두 가져옴 (status 파라미터 없이)
+      const all = await getContests();
+      setContests(all);
+    } catch (e: any) {
+      setError(e?.message ?? '데이터 로드 실패');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    (async () => {
-      try {
-        setLoading(true);
-        // published + draft 모두 가져옴 (status 파라미터 없이)
-        const all = await getContests();
-        setContests(all);
-      } catch (e: any) {
-        setError(e?.message ?? '데이터 로드 실패');
-      } finally {
-        setLoading(false);
-      }
-    })();
+    loadData();
+  }, []);
+
+  async function handleCrawl() {
+    setCrawlResult({ status: 'loading' });
+    try {
+      const result = await triggerCrawl();
+      const collected: number = result?.total ?? result?.count ?? result?.fetched ?? 0;
+      const inserted: number = result?.inserted ?? result?.new ?? 0;
+      setCrawlResult({ status: 'ok', collected, inserted });
+      // Refresh contest list to reflect newly inserted items
+      await loadData();
+    } catch (e: any) {
+      setCrawlResult({ status: 'error', message: e?.message ?? '오류 발생' });
+    }
+  }
+
+  /* ---------- 크롤 현황 파생 ---------- */
+  const crawlStats = useMemo(() => {
+    if (contests.length === 0) return { lastCrawlTime: null, newLast24h: 0 };
+
+    const maxCreatedAt = contests.reduce(
+      (best, c) => (c.created_at > best ? c.created_at : best),
+      contests[0].created_at
+    );
+
+    const yesterday = new Date(Date.now() - 86400000).toISOString();
+    const newLast24h = contests.filter((c) => c.created_at >= yesterday).length;
+
+    return { lastCrawlTime: maxCreatedAt, newLast24h };
+  }, [contests]);
+
+  /* ---------- 다음 크롤 실행 시각 (매일 오전 9시 KST) ---------- */
+  const nextCrawlLabel = useMemo(() => {
+    // KST = UTC+9. Compute current time in KST milliseconds offset.
+    const nowUtcMs = Date.now();
+    const kstOffsetMs = 9 * 60 * 60 * 1000;
+    const nowKstMs = nowUtcMs + kstOffsetMs;
+
+    // Build a Date representing today 09:00 KST expressed as UTC ms
+    const nowKstDate = new Date(nowKstMs);
+    const kstYear = nowKstDate.getUTCFullYear();
+    const kstMonth = nowKstDate.getUTCMonth();
+    const kstDay = nowKstDate.getUTCDate();
+    const kstHour = nowKstDate.getUTCHours();
+
+    // today 9 AM KST in UTC ms
+    const todayNineAmKstUtcMs =
+      Date.UTC(kstYear, kstMonth, kstDay, 9, 0, 0) - kstOffsetMs;
+
+    const nextLabel = kstHour < 9 ? '오늘 오전 9시' : '내일 오전 9시';
+    return nextLabel;
   }, []);
 
   /* ---------- 파생 데이터 ---------- */
@@ -312,7 +376,13 @@ export const Dashboard: React.FC = () => {
       <div className="min-h-[40vh] flex items-center justify-center">
         <div className="text-center text-slate-500">
           <AlertTriangle className="w-8 h-8 mx-auto mb-2 text-rose-400" />
-          <p className="text-sm">{error}</p>
+          <p className="text-sm mb-3">{error}</p>
+          <button
+            onClick={loadData}
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold bg-white border border-slate-200 hover:bg-slate-50 transition"
+          >
+            다시 시도
+          </button>
         </div>
       </div>
     );
@@ -337,6 +407,69 @@ export const Dashboard: React.FC = () => {
         <KPICard title="진행 중 공고" value={stats.active.toLocaleString()} subtitle="마감일 미경과" icon={Trophy} tone="sky" />
         <KPICard title="검토 대기" value={stats.draft.toLocaleString()} subtitle="draft" icon={Clock} tone="amber" />
       </div>
+
+      {/* 크롤 현황 */}
+      <SectionCard title="크롤 현황" subtitle="자동 수집 마지막 실행 기준" icon={Activity}>
+        <div className="flex flex-wrap items-center gap-6">
+          {/* 스케줄 정보 */}
+          <div className="flex-1 min-w-[200px]">
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">자동 크롤 스케줄</p>
+            <p className="mt-1 text-sm font-bold text-slate-800">⏰ 자동 크롤: 매일 오전 9시 (KST)</p>
+            <p className="mt-0.5 text-xs text-slate-500">다음 실행: {nextCrawlLabel}</p>
+          </div>
+
+          {/* 마지막 크롤 시각 */}
+          <div className="flex-1 min-w-[160px]">
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">마지막 수집 시각</p>
+            <p className="mt-1 text-sm font-bold text-slate-800">
+              {crawlStats.lastCrawlTime
+                ? new Date(crawlStats.lastCrawlTime).toLocaleString('ko-KR', {
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })
+                : '—'}
+            </p>
+          </div>
+
+          {/* 24시간 신규 수집 수 */}
+          <div className="flex-1 min-w-[140px]">
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">최근 24h 신규</p>
+            <p className="mt-1 text-2xl font-extrabold tracking-tight text-slate-900">
+              {crawlStats.newLast24h}
+              <span className="text-sm font-semibold text-slate-400 ml-1">건</span>
+            </p>
+          </div>
+
+          {/* 크롤 실행 버튼 + 결과 */}
+          <div className="flex flex-col items-start gap-2">
+            <button
+              onClick={handleCrawl}
+              disabled={crawlResult.status === 'loading'}
+              className={cx(
+                'inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition',
+                crawlResult.status === 'loading'
+                  ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                  : 'bg-sky-600 text-white hover:bg-sky-700'
+              )}
+            >
+              <RefreshCw className={cx('w-4 h-4', crawlResult.status === 'loading' && 'animate-spin')} />
+              {crawlResult.status === 'loading' ? '크롤 중…' : '크롤 실행'}
+            </button>
+
+            {crawlResult.status === 'ok' && (
+              <p className="text-xs text-emerald-700 font-medium">
+                ✅ 완료: {crawlResult.collected}개 수집, {crawlResult.inserted}개 등록
+              </p>
+            )}
+            {crawlResult.status === 'error' && (
+              <p className="text-xs text-rose-600 font-medium">❌ 오류 발생: {crawlResult.message}</p>
+            )}
+          </div>
+        </div>
+      </SectionCard>
 
       {/* Insights */}
       <SectionCard title="자동 인사이트" subtitle="데이터 기반 운영 제안" icon={TrendingUp}>
@@ -496,8 +629,22 @@ export const Dashboard: React.FC = () => {
                     : 'bg-slate-100 text-slate-500';
                 return (
                   <div key={c.id} className="py-3 flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold text-slate-900 truncate">{c.title}</p>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <p className="text-sm font-semibold text-slate-900 truncate">{c.title}</p>
+                        {c.status === 'published' && c.source_url && (
+                          <a
+                            href={c.source_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            title="원문 보기"
+                            className="shrink-0 text-slate-400 hover:text-slate-600 transition"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <ExternalLink className="w-3.5 h-3.5" />
+                          </a>
+                        )}
+                      </div>
                       <p className="text-xs text-slate-400 mt-0.5">
                         {extractSiteName(c.source_url)} · {c.created_at.slice(0, 10)}
                       </p>

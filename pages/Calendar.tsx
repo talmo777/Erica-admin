@@ -337,7 +337,7 @@ const Calendar: React.FC = () => {
                         </span>
                       </div>
                       <div className="text-sm font-semibold text-slate-900 line-clamp-2 leading-snug">{c.title}</div>
-                      <div className="text-xs text-slate-400 mt-1 line-clamp-1">{c.source || '출처 미상'}</div>
+                      <div className="text-xs text-slate-400 mt-1 line-clamp-1">{c.sourceUrl || '출처 미상'}</div>
                     </button>
                   ))}
                 </div>

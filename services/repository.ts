@@ -91,8 +91,9 @@ export const MetricsRepository = {
   getKPI: async (): Promise<KPIData> => {
     await delay(200);
 
-    const totalApplies = Math.floor(Math.random() * 1000) + 500;
-    const activeUsersToday = Math.floor(Math.random() * 200) + 50;
+    // TODO: Replace placeholder values with real analytics data
+    const totalApplies = 0;
+    const activeUsersToday = 0;
 
     return {
       participationRate: (totalApplies / TOTAL_STUDENTS_ESTIMATE) * 100,

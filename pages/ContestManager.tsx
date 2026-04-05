@@ -22,6 +22,7 @@ type ConfirmState =
       open: true;
       title: string;
       message: string;
+      body?: React.ReactNode;
       confirmText?: string;
       danger?: boolean;
       onConfirm: () => Promise<void>;
@@ -76,6 +77,25 @@ function buildDescriptionOptionA(d: AiDraft): string {
   lines.push('[본문]');
   lines.push(d.body || '');
   return lines.join('\n').trim();
+}
+
+function getSourceSiteName(sourceUrl?: string): string {
+  if (!sourceUrl) return '-';
+  try {
+    const hostname = new URL(sourceUrl).hostname.replace(/^www\./, '');
+    const map: Record<string, string> = {
+      'computing.hanyang.ac.kr': '소프트웨어융합대학',
+      'newshyu.com': '한양뉴스',
+      'hylu-e.hanyang.ac.kr': '비교과시스템',
+      'global.hanyang.ac.kr': '국제처',
+      'eec.hanyang.ac.kr': '창업교육센터',
+      'icpbl.hanyang.ac.kr': 'IC-PBL',
+      'information.hanyang.ac.kr': '학술정보관',
+    };
+    return map[hostname] ?? hostname;
+  } catch {
+    return sourceUrl;
+  }
 }
 
 function toApiStatus(s: ContestStatus): 'draft' | 'published' | 'archived' {
@@ -152,14 +172,17 @@ function ConfirmModal({ state, onClose }: { state: ConfirmState; onClose: () => 
           <div className="px-6 py-4 border-b">
             <div className="font-semibold text-slate-900">{state.title}</div>
           </div>
-          <div className="px-6 py-5 text-sm text-slate-700 whitespace-pre-wrap">
+          <div className="px-6 py-5 text-sm text-slate-700">
             {processing ? (
               <div className="flex items-center gap-3">
                 <div className="w-5 h-5 border-2 border-slate-300 border-t-sky-600 rounded-full animate-spin" />
                 <span>처리 중입니다...</span>
               </div>
             ) : (
-              state.message
+              <>
+                <p className="whitespace-pre-wrap">{state.message}</p>
+                {state.body && <div className="mt-3">{state.body}</div>}
+              </>
             )}
           </div>
           <div className="px-6 py-4 border-t flex gap-2 justify-end">
@@ -225,6 +248,9 @@ function ContestForm({
   const [aiResult, setAiResult] = useState<AiExtractResult | null>(null);
   const [aiDraft, setAiDraft] = useState<AiDraft | null>(null);
 
+  const [applyUrlError, setApplyUrlError] = useState<string | null>(null);
+  const [dateError, setDateError] = useState<string | null>(null);
+
   useEffect(() => {
     setForm(initial);
     setUploadFile(null);
@@ -232,12 +258,42 @@ function ContestForm({
     setAiUrl(initial.sourceUrl || '');
     setAiResult(null);
     setAiDraft(null);
+    setApplyUrlError(null);
+    setDateError(null);
   }, [initial.id]);
 
   async function onSubmit() {
     if (!form.title.trim()) return alert('공모전 제목은 필수입니다.');
     if (!form.applyUrl.trim()) return alert('신청 URL(Deep Link)은 필수입니다.');
     if (!form.targets.length) return alert('게시 대상을 최소 1개 선택하세요.');
+
+    // Validate applyUrl format
+    const applyUrlTrimmed = form.applyUrl.trim();
+    if (applyUrlTrimmed && !/^https?:\/\/.+/.test(applyUrlTrimmed)) {
+      setApplyUrlError('신청 URL은 http:// 또는 https://로 시작해야 합니다.');
+      return;
+    } else {
+      setApplyUrlError(null);
+    }
+
+    // Validate dates
+    const startVal = form.startDate.trim();
+    const endVal = form.endDate.trim();
+    if (endVal) {
+      const endParsed = new Date(endVal);
+      if (Number.isNaN(endParsed.getTime())) {
+        setDateError('마감일이 올바른 날짜 형식이 아닙니다. (예: YYYY-MM-DD)');
+        return;
+      }
+      if (startVal) {
+        const startParsed = new Date(startVal);
+        if (!Number.isNaN(startParsed.getTime()) && endParsed < startParsed) {
+          setDateError('마감일은 시작일보다 같거나 늦어야 합니다.');
+          return;
+        }
+      }
+    }
+    setDateError(null);
 
     try {
       const description = aiDraft ? buildDescriptionOptionA(aiDraft) : form.description;
@@ -379,9 +435,20 @@ function ContestForm({
           <label className="text-sm font-semibold text-slate-800">신청 URL(Deep Link)</label>
           <input
             value={form.applyUrl}
-            onChange={(e) => setForm({ ...form, applyUrl: e.target.value })}
-            className="w-full px-4 py-3 rounded-2xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-sky-200"
+            onChange={(e) => {
+              setForm({ ...form, applyUrl: e.target.value });
+              if (applyUrlError) setApplyUrlError(null);
+            }}
+            className={cx(
+              'w-full px-4 py-3 rounded-2xl border bg-white focus:outline-none focus:ring-2',
+              applyUrlError
+                ? 'border-rose-400 focus:ring-rose-200'
+                : 'border-slate-200 focus:ring-sky-200'
+            )}
           />
+          {applyUrlError && (
+            <p className="text-xs text-rose-600 mt-1">{applyUrlError}</p>
+          )}
         </div>
 
         <div className="space-y-2">
@@ -434,8 +501,16 @@ function ContestForm({
           <label className="text-sm font-semibold text-slate-800">시작일</label>
           <input
             value={form.startDate}
-            onChange={(e) => setForm({ ...form, startDate: e.target.value })}
-            className="w-full px-4 py-3 rounded-2xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-sky-200"
+            onChange={(e) => {
+              setForm({ ...form, startDate: e.target.value });
+              if (dateError) setDateError(null);
+            }}
+            className={cx(
+              'w-full px-4 py-3 rounded-2xl border bg-white focus:outline-none focus:ring-2',
+              dateError
+                ? 'border-rose-400 focus:ring-rose-200'
+                : 'border-slate-200 focus:ring-sky-200'
+            )}
             placeholder="YYYY-MM-DD"
           />
         </div>
@@ -444,10 +519,21 @@ function ContestForm({
           <label className="text-sm font-semibold text-slate-800">마감일</label>
           <input
             value={form.endDate}
-            onChange={(e) => setForm({ ...form, endDate: e.target.value })}
-            className="w-full px-4 py-3 rounded-2xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-sky-200"
+            onChange={(e) => {
+              setForm({ ...form, endDate: e.target.value });
+              if (dateError) setDateError(null);
+            }}
+            className={cx(
+              'w-full px-4 py-3 rounded-2xl border bg-white focus:outline-none focus:ring-2',
+              dateError
+                ? 'border-rose-400 focus:ring-rose-200'
+                : 'border-slate-200 focus:ring-sky-200'
+            )}
             placeholder="YYYY-MM-DD"
           />
+          {dateError && (
+            <p className="text-xs text-rose-600 mt-1 col-span-2">{dateError}</p>
+          )}
         </div>
       </div>
 
@@ -519,6 +605,18 @@ export const ContestManager: React.FC = () => {
   const [confirm, setConfirm] = useState<ConfirmState>({ open: false });
   const [crawling, setCrawling] = useState(false);
 
+  // Fix 1: search / filter state
+  const [searchText, setSearchText] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'' | 'draft' | 'published' | 'archived'>('');
+
+  const filteredList = useMemo(() => {
+    return list.filter((c) => {
+      const matchesText = !searchText || c.title.toLowerCase().includes(searchText.toLowerCase());
+      const matchesStatus = !statusFilter || toApiStatus(c.status) === statusFilter;
+      return matchesText && matchesStatus;
+    });
+  }, [list, searchText, statusFilter]);
+
   const selectedContest = useMemo(
     () => (editModal.id ? list.find((x) => x.id === editModal.id) ?? null : null),
     [editModal.id, list]
@@ -578,7 +676,7 @@ export const ContestManager: React.FC = () => {
       setSelectedIds(new Set());
       return;
     }
-    setSelectedIds(new Set(list.map((x) => x.id)));
+    setSelectedIds(new Set(filteredList.map((x) => x.id)));
   }
 
   function askDeleteOne(id: string) {
@@ -635,7 +733,90 @@ export const ContestManager: React.FC = () => {
     });
   }
 
-  const allChecked = list.length > 0 && selectedIds.size === list.length;
+  const allChecked = filteredList.length > 0 && filteredList.every((c) => selectedIds.has(c.id));
+
+  // Status counts derived from filteredList
+  const filteredStatusCounts = useMemo(() => {
+    let published = 0, draft = 0, archived = 0;
+    for (const c of filteredList) {
+      const s = toApiStatus(c.status);
+      if (s === 'published') published++;
+      else if (s === 'draft') draft++;
+      else if (s === 'archived') archived++;
+    }
+    return { total: filteredList.length, published, draft, archived };
+  }, [filteredList]);
+
+  // Fix 2: bulk publish for draft items
+  const selectedDraftIds = useMemo(
+    () => Array.from(selectedIds).filter((id) => {
+      const c = list.find((x) => x.id === id);
+      return c && toApiStatus(c.status) === 'draft';
+    }),
+    [selectedIds, list]
+  );
+
+  function askBulkPublish() {
+    if (selectedDraftIds.length === 0) return;
+
+    const draftContests = selectedDraftIds
+      .map((id) => list.find((x) => x.id === id))
+      .filter((c): c is Contest => !!c);
+
+    const previewItems = draftContests.slice(0, 5);
+    const overflow = draftContests.length - previewItems.length;
+
+    const previewBody = (
+      <div className="rounded-xl border border-slate-200 overflow-hidden text-xs">
+        <div className="px-3 py-2 bg-slate-50 border-b border-slate-200 font-semibold text-slate-600">
+          게시 예정 목록
+        </div>
+        <ul className="divide-y divide-slate-100">
+          {previewItems.map((c) => (
+            <li key={c.id} className="px-3 py-2 flex items-start justify-between gap-3">
+              <span className="text-slate-800 font-medium truncate max-w-[240px]">
+                {c.title.length > 40 ? c.title.slice(0, 40) + '…' : c.title}
+              </span>
+              <div className="flex items-center gap-2 shrink-0 text-slate-500">
+                <span>{c.category}</span>
+                {c.endDate && <span className="text-slate-400">~ {c.endDate}</span>}
+              </div>
+            </li>
+          ))}
+          {overflow > 0 && (
+            <li className="px-3 py-2 text-slate-400 italic">+ {overflow}개 더</li>
+          )}
+        </ul>
+      </div>
+    );
+
+    setConfirm({
+      open: true,
+      title: '일괄 게시',
+      message: `선택한 ${selectedDraftIds.length}개 공고를 게시하시겠습니까?`,
+      body: previewBody,
+      confirmText: '게시',
+      danger: false,
+      onConfirm: async () => {
+        const errors: string[] = [];
+        for (const id of selectedDraftIds) {
+          try {
+            await patchContest(id, { status: 'published' });
+          } catch (e: any) {
+            errors.push(id);
+            console.error(`게시 실패: ${id}`, e);
+          }
+        }
+        try { await refresh(); } catch { /* ignore */ }
+        setSelectedIds(new Set());
+        if (errors.length > 0) {
+          alert(`${selectedDraftIds.length - errors.length}건 게시 완료, ${errors.length}건 실패`);
+        } else {
+          alert(`${selectedDraftIds.length}건 게시 완료`);
+        }
+      },
+    });
+  }
 
   return (
     <div className="max-w-7xl mx-auto space-y-6">
@@ -676,9 +857,30 @@ export const ContestManager: React.FC = () => {
       {/* LIST VIEW */}
       {view === 'list' && (
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+          {/* Fix 1: 검색/필터 바 */}
+          <div className="px-5 py-3 border-b border-slate-100 flex flex-wrap items-center gap-3">
+            <input
+              type="text"
+              value={searchText}
+              onChange={(e) => setSearchText(e.target.value)}
+              placeholder="제목 검색..."
+              className="flex-1 min-w-[180px] px-3 py-2 rounded-xl border border-slate-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-sky-200"
+            />
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value as any)}
+              className="px-3 py-2 rounded-xl border border-slate-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-sky-200"
+            >
+              <option value="">전체</option>
+              <option value="draft">draft</option>
+              <option value="published">published</option>
+              <option value="archived">archived</option>
+            </select>
+          </div>
+
           {/* 툴바 */}
           <div className="px-5 py-3 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white flex items-center justify-between">
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 flex-wrap">
               <label className="inline-flex items-center gap-2 text-sm text-slate-600 cursor-pointer select-none">
                 <input
                   type="checkbox"
@@ -692,26 +894,46 @@ export const ContestManager: React.FC = () => {
                 {selectedIds.size > 0 ? (
                   <span className="text-sky-600 font-semibold">{selectedIds.size}개 선택됨</span>
                 ) : (
-                  `총 ${list.length}개`
+                  `총 ${filteredList.length}개${filteredList.length !== list.length ? ` (전체 ${list.length}개)` : ''}`
                 )}
               </span>
+              {/* 상태별 요약 */}
+              <span className="text-xs text-slate-400 select-none">
+                전체 {filteredStatusCounts.total}개
+                <span className="mx-1 text-slate-300">|</span>
+                <span className="text-emerald-600 font-medium">게시됨 {filteredStatusCounts.published}개</span>
+                <span className="mx-1 text-slate-300">|</span>
+                <span className="text-amber-600 font-medium">대기 {filteredStatusCounts.draft}개</span>
+                <span className="mx-1 text-slate-300">|</span>
+                <span className="text-slate-500 font-medium">보관 {filteredStatusCounts.archived}개</span>
+              </span>
             </div>
-            {selectedIds.size > 0 && (
-              <button onClick={askDeleteSelected} className={cx(btnDanger, 'text-xs px-3 py-1.5 gap-1.5')}>
-                <Trash2 className="w-3.5 h-3.5" />
-                선택 삭제 ({selectedIds.size})
-              </button>
-            )}
+            <div className="flex items-center gap-2">
+              {/* Fix 2: 선택 일괄 게시 버튼 */}
+              {selectedDraftIds.length > 0 && (
+                <button onClick={askBulkPublish} className={cx(btnPrimary, 'text-xs px-3 py-1.5 gap-1.5')}>
+                  선택 일괄 게시 ({selectedDraftIds.length})
+                </button>
+              )}
+              {selectedIds.size > 0 && (
+                <button onClick={askDeleteSelected} className={cx(btnDanger, 'text-xs px-3 py-1.5 gap-1.5')}>
+                  <Trash2 className="w-3.5 h-3.5" />
+                  선택 삭제 ({selectedIds.size})
+                </button>
+              )}
+            </div>
           </div>
 
           {/* 리스트 */}
           <div className="divide-y divide-slate-100">
             {loading ? (
               <div className="px-6 py-12 text-center text-slate-400">불러오는 중…</div>
-            ) : list.length === 0 ? (
-              <div className="px-6 py-12 text-center text-slate-400">데이터가 없습니다.</div>
+            ) : filteredList.length === 0 ? (
+              <div className="px-6 py-12 text-center text-slate-400">
+                {list.length === 0 ? '데이터가 없습니다.' : '검색 결과가 없습니다.'}
+              </div>
             ) : (
-              list.map((c) => {
+              filteredList.map((c) => {
                 const checked = selectedIds.has(c.id);
                 const statusTone = c.status === ContestStatus.PUBLISHED ? 'sky' : c.status === ContestStatus.ARCHIVED ? 'rose' : 'slate';
 
@@ -734,7 +956,20 @@ export const ContestManager: React.FC = () => {
                     {/* 포스터 썸네일 or 상태 */}
                     <div className="shrink-0 w-10 h-10 rounded-lg overflow-hidden bg-slate-100 flex items-center justify-center">
                       {c.imageUrl ? (
-                        <img src={c.imageUrl} alt="" className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; (e.target as HTMLImageElement).nextElementSibling as any && ((e.target as HTMLImageElement).parentElement!.innerHTML = '<span class="text-slate-300"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="1" y1="1" x2="23" y2="23"/><path d="M21 15V5a2 2 0 0 0-2-2H5"/><path d="m2 2 20 20"/></svg></span>'); }} />
+                        <>
+                          <img
+                            src={c.imageUrl}
+                            alt=""
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              const img = e.target as HTMLImageElement;
+                              img.style.display = 'none';
+                              const fallback = img.nextElementSibling as HTMLElement | null;
+                              if (fallback) fallback.style.display = '';
+                            }}
+                          />
+                          <ImageOff className="w-4 h-4 text-slate-300" style={{ display: 'none' }} />
+                        </>
                       ) : (
                         <ImageOff className="w-4 h-4 text-slate-300" />
                       )}
@@ -745,6 +980,22 @@ export const ContestManager: React.FC = () => {
                       <div className="mt-1.5 flex flex-wrap items-center gap-2">
                         <Chip>{c.category}</Chip>
                         <Chip tone={statusTone as any}>{c.status}</Chip>
+                        {/* 데이터 출처 chip */}
+                        {c.sourceUrl ? (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-600 ring-1 ring-slate-200">
+                            자동수집
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700 ring-1 ring-blue-200">
+                            수동등록
+                          </span>
+                        )}
+                        {/* Fix 3: source site */}
+                        {c.sourceUrl && (
+                          <span className="inline-flex items-center gap-1 text-xs text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full ring-1 ring-slate-200">
+                            {getSourceSiteName(c.sourceUrl)}
+                          </span>
+                        )}
                         {c.imageUrl ? (
                           <span className="inline-flex items-center gap-1 text-xs text-emerald-600"><Image className="w-3 h-3" />포스터</span>
                         ) : (

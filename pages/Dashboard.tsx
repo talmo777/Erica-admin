@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { getContests, triggerCrawl, ApiContest } from '../services/api';
+import { supabase } from '../services/supabaseClient';
 import {
   BarChart,
   Bar,
@@ -189,17 +190,28 @@ type CrawlResult =
   | { status: 'ok'; collected: number; inserted: number }
   | { status: 'error'; message: string };
 
+type CrawlRun = {
+  id: string;
+  started_at: string;
+  finished_at: string | null;
+  status: 'running' | 'done' | 'error';
+  fetched: number | null;
+  inserted: number | null;
+  errors: number | null;
+  note: string | null;
+};
+
 export const Dashboard: React.FC = () => {
   const [contests, setContests] = useState<ApiContest[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [crawlResult, setCrawlResult] = useState<CrawlResult>({ status: 'idle' });
+  const [crawlRuns, setCrawlRuns] = useState<CrawlRun[]>([]);
 
   const loadData = async () => {
     try {
       setLoading(true);
       setError(null);
-      // published + draft 모두 가져옴 (status 파라미터 없이)
       const all = await getContests();
       setContests(all);
     } catch (e: any) {
@@ -209,21 +221,36 @@ export const Dashboard: React.FC = () => {
     }
   };
 
+  const loadCrawlRuns = async () => {
+    try {
+      const { data } = await supabase
+        .from('crawl_runs')
+        .select('id, started_at, finished_at, status, fetched, inserted, errors, note')
+        .order('started_at', { ascending: false })
+        .limit(8);
+      if (data) setCrawlRuns(data as CrawlRun[]);
+    } catch {
+      // crawl_runs 테이블 미생성 시 무시
+    }
+  };
+
   useEffect(() => {
     loadData();
+    loadCrawlRuns();
   }, []);
 
   async function handleCrawl() {
     setCrawlResult({ status: 'loading' });
     try {
       const result = await triggerCrawl();
-      const collected: number = result?.total ?? result?.count ?? result?.fetched ?? 0;
-      const inserted: number = result?.inserted ?? result?.new ?? 0;
+      const collected: number = result?.totals?.fetched ?? result?.total ?? result?.fetched ?? 0;
+      const inserted: number = result?.totals?.inserted ?? result?.inserted ?? 0;
       setCrawlResult({ status: 'ok', collected, inserted });
-      // Refresh contest list to reflect newly inserted items
       await loadData();
+      await loadCrawlRuns();
     } catch (e: any) {
       setCrawlResult({ status: 'error', message: e?.message ?? '오류 발생' });
+      await loadCrawlRuns();
     }
   }
 
@@ -470,6 +497,69 @@ export const Dashboard: React.FC = () => {
           </div>
         </div>
       </SectionCard>
+
+      {/* 크롤 실행 이력 */}
+      {crawlRuns.length > 0 && (
+        <SectionCard title="크롤 실행 이력" subtitle="최근 8회 실행 기록" icon={Activity}>
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="text-slate-400 border-b border-slate-100">
+                  <th className="text-left py-2 pr-3 font-semibold">시작</th>
+                  <th className="text-left py-2 pr-3 font-semibold">소요</th>
+                  <th className="text-left py-2 pr-3 font-semibold">상태</th>
+                  <th className="text-right py-2 pr-3 font-semibold">수집</th>
+                  <th className="text-right py-2 pr-3 font-semibold">등록</th>
+                  <th className="text-right py-2 font-semibold">오류</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-50">
+                {crawlRuns.map((run) => {
+                  const durationSec = run.finished_at
+                    ? Math.round((new Date(run.finished_at).getTime() - new Date(run.started_at).getTime()) / 1000)
+                    : null;
+                  const statusStyle =
+                    run.status === 'done'
+                      ? 'bg-emerald-100 text-emerald-700'
+                      : run.status === 'error'
+                      ? 'bg-rose-100 text-rose-700'
+                      : 'bg-amber-100 text-amber-700';
+                  const statusLabel = run.status === 'done' ? '완료' : run.status === 'error' ? '오류' : '실행 중';
+                  return (
+                    <tr key={run.id} className="hover:bg-slate-50 transition-colors">
+                      <td className="py-2 pr-3 text-slate-600">
+                        {new Date(run.started_at).toLocaleString('ko-KR', {
+                          month: '2-digit', day: '2-digit',
+                          hour: '2-digit', minute: '2-digit',
+                        })}
+                      </td>
+                      <td className="py-2 pr-3 text-slate-500">
+                        {durationSec !== null ? `${durationSec}s` : '—'}
+                      </td>
+                      <td className="py-2 pr-3">
+                        <span className={cx('px-2 py-0.5 rounded-full font-semibold text-[11px]', statusStyle)}>
+                          {statusLabel}
+                        </span>
+                      </td>
+                      <td className="py-2 pr-3 text-right font-mono text-slate-700">
+                        {run.fetched ?? '—'}
+                      </td>
+                      <td className="py-2 pr-3 text-right font-mono text-emerald-700 font-semibold">
+                        {run.inserted ?? '—'}
+                      </td>
+                      <td className="py-2 text-right font-mono">
+                        <span className={run.errors ? 'text-rose-600 font-semibold' : 'text-slate-400'}>
+                          {run.errors ?? 0}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </SectionCard>
+      )}
 
       {/* Insights */}
       <SectionCard title="자동 인사이트" subtitle="데이터 기반 운영 제안" icon={TrendingUp}>

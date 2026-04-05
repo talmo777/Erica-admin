@@ -60,9 +60,43 @@ const ContestModal: React.FC<Props> = ({ isOpen, contest, onClose }) => {
               </div>
             )}
 
-            <div className="text-sm text-slate-700 whitespace-pre-wrap leading-relaxed">
-              {contest.description || '설명이 없습니다.'}
-            </div>
+            {(() => {
+              const ATTACHMENT_MARKER = '\n[[ATTACHMENTS]]\n';
+              const raw = contest.description ?? '';
+              const [bodyPart, attachPart] = raw.split(ATTACHMENT_MARKER);
+              const pdfUrls = attachPart
+                ? attachPart.split('\n').map(u => u.trim()).filter(u => u.startsWith('http'))
+                : [];
+              const getFileName = (url: string) => {
+                try { return decodeURIComponent(url.split('/').pop()?.split('?')[0] ?? url); }
+                catch { return url; }
+              };
+              return (
+                <>
+                  <div className="text-sm text-slate-700 whitespace-pre-wrap leading-relaxed">
+                    {bodyPart || '설명이 없습니다.'}
+                  </div>
+                  {pdfUrls.length > 0 && (
+                    <div className="space-y-2">
+                      <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">첨부파일</p>
+                      {pdfUrls.map((url, idx) => (
+                        <a
+                          key={idx}
+                          href={url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-sm text-slate-700 transition-colors"
+                        >
+                          <span className="text-base leading-none">📄</span>
+                          <span className="truncate flex-1">{getFileName(url)}</span>
+                          <ExternalLink className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
+                        </a>
+                      ))}
+                    </div>
+                  )}
+                </>
+              );
+            })()}
           </div>
         </div>
 

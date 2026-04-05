@@ -608,14 +608,22 @@ export const ContestManager: React.FC = () => {
   // Fix 1: search / filter state
   const [searchText, setSearchText] = useState('');
   const [statusFilter, setStatusFilter] = useState<'' | 'draft' | 'published' | 'archived'>('');
+  const [unknownDeadlineOnly, setUnknownDeadlineOnly] = useState(false);
+
+  // 마감일 미확인 항목 수 (빠른 뱃지 표시용)
+  const unknownDeadlineCount = useMemo(
+    () => list.filter((c) => c.description?.startsWith('[마감일 미확인]')).length,
+    [list]
+  );
 
   const filteredList = useMemo(() => {
     return list.filter((c) => {
       const matchesText = !searchText || c.title.toLowerCase().includes(searchText.toLowerCase());
       const matchesStatus = !statusFilter || toApiStatus(c.status) === statusFilter;
-      return matchesText && matchesStatus;
+      const matchesUnknown = !unknownDeadlineOnly || c.description?.startsWith('[마감일 미확인]');
+      return matchesText && matchesStatus && matchesUnknown;
     });
-  }, [list, searchText, statusFilter]);
+  }, [list, searchText, statusFilter, unknownDeadlineOnly]);
 
   const selectedContest = useMemo(
     () => (editModal.id ? list.find((x) => x.id === editModal.id) ?? null : null),
@@ -857,7 +865,7 @@ export const ContestManager: React.FC = () => {
       {/* LIST VIEW */}
       {view === 'list' && (
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-          {/* Fix 1: 검색/필터 바 */}
+          {/* 검색/필터 바 */}
           <div className="px-5 py-3 border-b border-slate-100 flex flex-wrap items-center gap-3">
             <input
               type="text"
@@ -872,10 +880,27 @@ export const ContestManager: React.FC = () => {
               className="px-3 py-2 rounded-xl border border-slate-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-sky-200"
             >
               <option value="">전체</option>
-              <option value="draft">draft</option>
-              <option value="published">published</option>
-              <option value="archived">archived</option>
+              <option value="draft">검수 대기</option>
+              <option value="published">게시됨</option>
+              <option value="archived">보관</option>
             </select>
+            {/* 마감일 미확인 필터 토글 */}
+            <button
+              onClick={() => setUnknownDeadlineOnly((v) => !v)}
+              className={cx(
+                'flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium border transition',
+                unknownDeadlineOnly
+                  ? 'bg-amber-50 border-amber-300 text-amber-800'
+                  : 'bg-white border-slate-200 text-slate-600 hover:bg-amber-50 hover:border-amber-200'
+              )}
+            >
+              ⚠️ 마감일 미확인
+              {unknownDeadlineCount > 0 && (
+                <span className="ml-1 bg-amber-200 text-amber-900 text-xs font-bold px-1.5 py-0.5 rounded-full">
+                  {unknownDeadlineCount}
+                </span>
+              )}
+            </button>
           </div>
 
           {/* 툴바 */}

@@ -241,9 +241,9 @@ export const AdminLayout: React.FC = () => {
             )}
           >
             <div className="w-10 h-10 rounded-2xl flex items-center justify-center">
-              <img src={MOYEON_LOGO_URL} alt="모두의연구소" className="w-5 h-5 rounded" />
+              <img src={MOYEON_LOGO_URL} alt="모두의 문제 연구소" className="w-5 h-5 rounded" />
             </div>
-            {isDesktopExpanded && <div className="hidden md:block text-xs font-semibold truncate">Powered by 모두의연구소</div>}
+            {isDesktopExpanded && <div className="hidden md:block text-xs font-semibold truncate">Powered by 모두의 문제 연구소</div>}
             {/* ✅ 하단 툴팁 제거 */}
           </a>
         </div>

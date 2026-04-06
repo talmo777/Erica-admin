@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Send, RefreshCw, Plus, Trash2, Download, Image, ImageOff } from 'lucide-react';
+import { Send, RefreshCw, Plus, Trash2, Download, Image, ImageOff, Sparkles } from 'lucide-react';
 import { Contest, ContestCategory, ContestStatus, TARGET_OPTIONS } from '../types';
 import { extractContestInfo, AiExtractResult } from '../services/aiExtract';
 import {
@@ -10,6 +10,7 @@ import {
   uploadPoster,
   triggerCrawl,
   extractFromUrlApi,
+  analyzeContest,
   ApiContestUpsertBody,
 } from '../services/api';
 import { mapApiContestToContest } from '../services/contestMapper';
@@ -609,6 +610,35 @@ export const ContestManager: React.FC = () => {
   const [searchText, setSearchText] = useState('');
   const [statusFilter, setStatusFilter] = useState<'' | 'draft' | 'published' | 'archived'>('');
   const [unknownDeadlineOnly, setUnknownDeadlineOnly] = useState(false);
+  const [analyzingIds, setAnalyzingIds] = useState<Set<string>>(new Set());
+
+  // AI 분석 핸들러 (건별 LLM 실행)
+  async function handleAnalyze(id: string) {
+    setAnalyzingIds((prev) => new Set(prev).add(id));
+    try {
+      const result = await analyzeContest(id);
+      // 분석 완료 후 해당 항목만 로컬 업데이트
+      setList((prev) =>
+        prev.map((c) => {
+          if (c.id !== id) return c;
+          const updated = result.item;
+          return {
+            ...c,
+            title: updated.title ?? c.title,
+            description: updated.description ?? c.description,
+            endDate: updated.end_date ?? c.endDate,
+            startDate: updated.start_date ?? c.startDate,
+            category: (updated.category as any) ?? c.category,
+            imageUrl: updated.poster_url ?? c.imageUrl,
+          };
+        })
+      );
+    } catch (e: any) {
+      alert(`AI 분석 실패: ${e?.message ?? '오류'}`);
+    } finally {
+      setAnalyzingIds((prev) => { const s = new Set(prev); s.delete(id); return s; });
+    }
+  }
 
   // 마감일 미확인 항목 수 (빠른 뱃지 표시용)
   const unknownDeadlineCount = useMemo(
@@ -1031,6 +1061,22 @@ export const ContestManager: React.FC = () => {
                       </div>
                     </button>
 
+                    {/* AI 분석 버튼: [AI분석필요] 마커가 있는 draft 항목에만 표시 */}
+                    {c.description?.includes('[AI분석필요]') && toApiStatus(c.status) === 'draft' && (
+                      <button
+                        onClick={() => handleAnalyze(c.id)}
+                        disabled={analyzingIds.has(c.id)}
+                        className={cx(
+                          'shrink-0 w-8 h-8 rounded-lg flex items-center justify-center transition',
+                          analyzingIds.has(c.id)
+                            ? 'bg-violet-100 text-violet-400 cursor-not-allowed'
+                            : 'hover:bg-violet-50 text-slate-400 hover:text-violet-600'
+                        )}
+                        title="AI 내용 분석"
+                      >
+                        <Sparkles className={cx('w-4 h-4', analyzingIds.has(c.id) && 'animate-pulse')} />
+                      </button>
+                    )}
                     <button
                       onClick={() => askDeleteOne(c.id)}
                       className="shrink-0 w-8 h-8 rounded-lg hover:bg-rose-50 flex items-center justify-center text-slate-400 hover:text-rose-600 transition"

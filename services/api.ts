@@ -201,6 +201,24 @@ export async function triggerCrawl(): Promise<any> {
 }
 
 /**
+ * 공모전 AI 분석: POST /api/v1/ai/analyze-contest
+ * Gemini LLM으로 source_url 페이지를 분석해 정보(날짜·설명·카테고리 등) 채움
+ */
+export async function analyzeContest(id: string): Promise<{ ok: boolean; item: ApiContest }> {
+  requireBase();
+  const res = await fetch(`${API_BASE}/api/v1/ai/analyze-contest`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ id }),
+  });
+  if (!res.ok) {
+    const body = await res.text().catch(() => '');
+    throw new Error(`분석 실패 (HTTP ${res.status}): ${body}`);
+  }
+  return await res.json();
+}
+
+/**
  * URL에서 상세 정보 추출: GET /api/v1/extract-url?url=...
  * 포스터, 설명, 마감일, 시작일을 추출
  */

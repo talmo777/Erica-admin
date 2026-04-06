@@ -441,7 +441,7 @@ export const Dashboard: React.FC = () => {
           {/* 스케줄 정보 */}
           <div className="flex-1 min-w-[200px]">
             <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">자동 크롤 스케줄</p>
-            <p className="mt-1 text-sm font-bold text-slate-800">⏰ 자동 크롤: 매일 오전 9시 (KST)</p>
+            <p className="mt-1 text-sm font-bold text-slate-800">자동 크롤: 매일 오전 9시 (KST)</p>
             <p className="mt-0.5 text-xs text-slate-500">다음 실행: {nextCrawlLabel}</p>
           </div>
 
@@ -488,11 +488,11 @@ export const Dashboard: React.FC = () => {
 
             {crawlResult.status === 'ok' && (
               <p className="text-xs text-emerald-700 font-medium">
-                ✅ 완료: {crawlResult.collected}개 수집, {crawlResult.inserted}개 등록
+                완료: {crawlResult.collected}개 수집, {crawlResult.inserted}개 등록
               </p>
             )}
             {crawlResult.status === 'error' && (
-              <p className="text-xs text-rose-600 font-medium">❌ 오류 발생: {crawlResult.message}</p>
+              <p className="text-xs text-rose-600 font-medium">오류 발생: {crawlResult.message}</p>
             )}
           </div>
         </div>

@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, ExternalLink } from 'lucide-react';
+import { X, ExternalLink, FileText } from 'lucide-react';
 import { Contest } from '../types';
 
 type Props = {
@@ -87,7 +87,7 @@ const ContestModal: React.FC<Props> = ({ isOpen, contest, onClose }) => {
                           rel="noopener noreferrer"
                           className="flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-sm text-slate-700 transition-colors"
                         >
-                          <span className="text-base leading-none">📄</span>
+                          <FileText className="w-4 h-4 text-slate-500 shrink-0" />
                           <span className="truncate flex-1">{getFileName(url)}</span>
                           <ExternalLink className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
                         </a>

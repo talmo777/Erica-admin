@@ -924,7 +924,7 @@ export const ContestManager: React.FC = () => {
                   : 'bg-white border-slate-200 text-slate-600 hover:bg-amber-50 hover:border-amber-200'
               )}
             >
-              ⚠️ 마감일 미확인
+              마감일 미확인
               {unknownDeadlineCount > 0 && (
                 <span className="ml-1 bg-amber-200 text-amber-900 text-xs font-bold px-1.5 py-0.5 rounded-full">
                   {unknownDeadlineCount}

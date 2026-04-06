@@ -227,6 +227,7 @@ export async function extractFromUrlApi(url: string): Promise<{
   description: string | null;
   endDate: string | null;
   startDate: string | null;
+  pdfs: string[];
 }> {
   requireBase();
 

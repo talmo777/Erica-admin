@@ -372,6 +372,7 @@ function ContestForm({
 
         const summary = [
           res.posterUrl ? '포스터 추출됨' : '포스터 없음',
+          res.pdfs?.length ? `첨부파일 ${res.pdfs.length}개` : '',
           res.description ? `설명 ${res.description.length}자` : '설명 없음',
           res.endDate ? `마감일: ${res.endDate}` : '',
         ].filter(Boolean).join(', ');

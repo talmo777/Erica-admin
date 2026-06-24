@@ -8,6 +8,7 @@ import { Dashboard } from './pages/Dashboard';
 import { ContestManager } from './pages/ContestManager';
 import CalendarView from './pages/Calendar';
 import { SupportPage } from './pages/Support';
+import { CrawlInbox } from './pages/CrawlInbox';
 
 import { Landing } from './pages/Landing';
 import { LoginPage } from './pages/LoginPage';
@@ -55,6 +56,7 @@ const App: React.FC = () => {
             }
           >
             <Route index element={<Dashboard />} />
+            <Route path="inbox" element={<CrawlInbox />} />
             <Route path="contests" element={<ContestManager />} />
             <Route path="calendar" element={<CalendarView />} />
             <Route path="feedback" element={<SupportPage />} />

@@ -1,0 +1,19 @@
+{
+  "name": "erica-notice-crawler",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "ERICA 공모전/공지 목록 일괄 수집(bulk ingestion) 크롤러. 1순위 소스: 한양대 전체공지(notice_all). 결과는 JSONL로 덤프 (분류는 downstream).",
+  "scripts": {
+    "crawl": "node run.ts",
+    "crawl:dry": "node run.ts --pages 1",
+    "serve": "node --env-file=../.env.local server.ts",
+    "backfill": "node --env-file=../.env.local backfill.ts"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.108.2",
+    "cheerio": "^1.0.0",
+    "pg": "^8.22.0",
+    "playwright": "^1.61.0"
+  }
+}

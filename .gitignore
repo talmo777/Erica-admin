@@ -11,6 +11,15 @@ node_modules
 dist
 dist-ssr
 *.local
+.env
+.env.*
+!.env.example
+
+# 크롤 결과/런타임 산출물 (재생성 가능, 공유 불필요)
+crawler/out/
+
+# 로컬 에디터/툴 설정
+.claude/
 
 # Editor directories and files
 .vscode/*

@@ -7,6 +7,7 @@ import {
   MessageSquare,
   AlertTriangle,
   Send,
+  Inbox,
   LogOut,
   Menu,
   User,
@@ -57,6 +58,7 @@ export const AdminLayout: React.FC = () => {
     { path: '/admin/calendar', label: '캘린더', icon: Calendar },
     { path: '/admin/feedback', label: '실무자 피드백', icon: MessageSquare },
     { path: '/admin/emergency', label: '긴급 지원', icon: AlertTriangle },
+    { path: '/admin/inbox', label: '수집 인박스', icon: Inbox },
     { path: '/admin/contests', label: '공모전 게시/배포', icon: Send },
   ];
 
